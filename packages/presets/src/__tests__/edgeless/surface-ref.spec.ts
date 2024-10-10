@@ -1,48 +1,53 @@
+import type { DocSnapshot } from '@blocksuite/store';
+
 import {
-  DocModeProvider,
   type EdgelessRootBlockComponent,
+  EdgelessRootService,
+  type FrameBlockComponent,
   type SurfaceRefBlockComponent,
 } from '@blocksuite/blocks';
-import { DocMode } from '@blocksuite/blocks';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 
 import { wait } from '../utils/common.js';
 import { addNote, getDocRootBlock } from '../utils/edgeless.js';
+import { importFromSnapshot } from '../utils/misc.js';
 import { setupEditor } from '../utils/setup.js';
 
 describe('basic', () => {
   let service: EdgelessRootBlockComponent['service'];
   let edgelessRoot: EdgelessRootBlockComponent;
-  let noteA = '';
-  let noteB = '';
-  let shapeA = '';
-  let shapeB = '';
-  let frame = '';
+  let noteAId = '';
+  let noteBId = '';
+  let shapeAId = '';
+  let shapeBId = '';
+  let frameId = '';
 
   beforeEach(async () => {
-    const cleanup = await setupEditor(DocMode.Edgeless);
+    const cleanup = await setupEditor('edgeless');
     edgelessRoot = getDocRootBlock(doc, editor, 'edgeless');
     service = edgelessRoot.service;
 
-    noteA = addNote(doc, {
-      index: service.generateIndex('affine:note'),
+    noteAId = addNote(doc, {
+      index: service.generateIndex(),
     });
-    shapeA = service.addElement('shape', {
+    shapeAId = service.addElement('shape', {
       type: 'rect',
       xywh: '[0, 0, 100, 100]',
+      index: service.generateIndex(),
     });
-    noteB = addNote(doc, {
-      // force to be the last note
-      index: service.generateIndex('shape'),
+    noteBId = addNote(doc, {
+      index: service.generateIndex(),
     });
-    shapeB = service.addElement('shape', {
+    shapeBId = service.addElement('shape', {
       type: 'rect',
       xywh: '[100, 0, 100, 100]',
+      index: service.generateIndex(),
     });
-    frame = service.addBlock(
+    frameId = service.addBlock(
       'affine:frame',
       {
         xywh: '[0, 0, 800, 200]',
+        index: service.generateIndex(),
       },
       service.surface.id
     );
@@ -54,12 +59,12 @@ describe('basic', () => {
     const surfaceRefId = doc.addBlock(
       'affine:surface-ref',
       {
-        reference: frame,
+        reference: frameId,
       },
-      noteA
+      noteAId
     );
 
-    editor.mode = DocMode.Page;
+    editor.mode = 'page';
     await wait();
 
     expect(
@@ -73,9 +78,9 @@ describe('basic', () => {
     const surfaceRefId = doc.addBlock(
       'affine:surface-ref',
       {
-        reference: frame,
+        reference: frameId,
       },
-      noteA
+      noteAId
     );
 
     await wait();
@@ -92,12 +97,12 @@ describe('basic', () => {
     const surfaceRefId = doc.addBlock(
       'affine:surface-ref',
       {
-        reference: frame,
+        reference: frameId,
       },
-      noteA
+      noteAId
     );
 
-    editor.mode = DocMode.Page;
+    editor.mode = 'page';
     await wait();
 
     const surfaceRef = document.querySelector(
@@ -111,7 +116,7 @@ describe('basic', () => {
     ) as HTMLCanvasElement[];
 
     expect(refBlocks.length).toBe(2);
-    expect(stackingCanvas.length).toBe(1);
+    expect(stackingCanvas.length).toBe(2);
     expect(stackingCanvas[0].style.zIndex > refBlocks[0].style.zIndex).toBe(
       true
     );
@@ -120,10 +125,10 @@ describe('basic', () => {
   test('content in group should be rendered in the correct order', async () => {
     const groupId = service.addElement('group', {
       children: {
-        [shapeA]: true,
-        [shapeB]: true,
-        [noteA]: true,
-        [noteB]: true,
+        [shapeAId]: true,
+        [shapeBId]: true,
+        [noteAId]: true,
+        [noteBId]: true,
       },
     });
     const surfaceRefId = doc.addBlock(
@@ -131,10 +136,10 @@ describe('basic', () => {
       {
         reference: groupId,
       },
-      noteA
+      noteAId
     );
 
-    editor.mode = DocMode.Page;
+    editor.mode = 'page';
     await wait();
 
     const surfaceRef = document.querySelector(
@@ -154,13 +159,40 @@ describe('basic', () => {
     );
   });
 
-  test('view in edgeless mode button', async () => {
+  test('frame should be rendered in surface-ref viewport', async () => {
+    const surfaceRefId = doc.addBlock(
+      'affine:surface-ref',
+      {
+        reference: frameId,
+      },
+      noteAId
+    );
+
+    editor.mode = 'page';
+    await wait();
+
+    const surfaceRef = document.querySelector(
+      `affine-surface-ref[data-block-id="${surfaceRefId}"]`
+    ) as SurfaceRefBlockComponent;
+
+    const edgeless = surfaceRef.previewEditor!.std.get(EdgelessRootService);
+
+    const frame = surfaceRef.querySelector(
+      'affine-frame'
+    ) as FrameBlockComponent;
+
+    expect(
+      edgeless.viewport.isInViewport(frame.model.elementBound)
+    ).toBeTruthy();
+  });
+
+  test('group should be rendered in surface-ref viewport', async () => {
     const groupId = service.addElement('group', {
       children: {
-        [shapeA]: true,
-        [shapeB]: true,
-        [noteA]: true,
-        [noteB]: true,
+        [shapeAId]: true,
+        [shapeBId]: true,
+        [noteAId]: true,
+        [noteBId]: true,
       },
     });
     const surfaceRefId = doc.addBlock(
@@ -168,23 +200,109 @@ describe('basic', () => {
       {
         reference: groupId,
       },
-      noteA
+      noteAId
     );
 
-    editor.mode = DocMode.Page;
+    editor.mode = 'page';
+    await wait();
+
+    const surfaceRef = document.querySelector(
+      `affine-surface-ref[data-block-id="${surfaceRefId}"]`
+    ) as SurfaceRefBlockComponent;
+
+    const edgeless = surfaceRef.previewEditor!.std.get(EdgelessRootService);
+
+    const group = edgeless.getElementById(groupId)!;
+
+    expect(edgeless.viewport.isInViewport(group.elementBound)).toBeTruthy();
+  });
+
+  test('viewport of surface-ref should be updated when the reference xywh updated', async () => {
+    const surfaceRefId = doc.addBlock(
+      'affine:surface-ref',
+      {
+        reference: frameId,
+      },
+      noteAId
+    );
+
+    editor.mode = 'page';
+    await wait();
+
+    const surfaceRef = document.querySelector(
+      `affine-surface-ref[data-block-id="${surfaceRefId}"]`
+    ) as SurfaceRefBlockComponent;
+
+    const edgeless = surfaceRef.previewEditor!.std.get(EdgelessRootService);
+
+    const frame = surfaceRef.querySelector(
+      'affine-frame'
+    ) as FrameBlockComponent;
+
+    const oldViewport = edgeless.viewport.viewportBounds;
+
+    frame.model.xywh = '[100, 100, 800, 200]';
+    await wait();
+
+    expect(edgeless.viewport.viewportBounds).not.toEqual(oldViewport);
+  });
+
+  test('view in edgeless mode button', async () => {
+    const groupId = service.addElement('group', {
+      children: {
+        [shapeAId]: true,
+        [shapeBId]: true,
+        [noteAId]: true,
+        [noteBId]: true,
+      },
+    });
+    const surfaceRefId = doc.addBlock(
+      'affine:surface-ref',
+      {
+        reference: groupId,
+      },
+      noteAId
+    );
+
+    editor.mode = 'page';
     await wait();
 
     const surfaceRef = document.querySelector(
       `affine-surface-ref[data-block-id="${surfaceRefId}"]`
     ) as HTMLElement;
 
-    const switchEditor = vi.fn(() => {});
-    const pageService = editor.host!.std.getService('affine:page');
-    pageService.std.get(DocModeProvider).onModeChange(switchEditor);
-
     expect(surfaceRef).instanceOf(Element);
     (surfaceRef as SurfaceRefBlockComponent).viewInEdgeless();
-    expect(switchEditor).toBeCalledWith('edgeless');
     await wait();
+  });
+});
+
+import snapshot from '../snapshots/edgeless/surface-ref.spec.ts/surface-ref.json';
+
+describe('clipboard', () => {
+  test('import surface-ref snapshot should render content correctly', async () => {
+    await setupEditor('page');
+
+    const pageRoot = getDocRootBlock(doc, editor, 'page');
+    const pageRootService = pageRoot.service;
+
+    const newDoc = await importFromSnapshot(
+      pageRootService.collection,
+      snapshot as DocSnapshot
+    );
+    expect(newDoc).toBeTruthy();
+
+    editor.doc = newDoc!;
+    await wait();
+
+    const surfaceRefs = newDoc!.getBlocksByFlavour('affine:surface-ref');
+    expect(surfaceRefs).toHaveLength(2);
+
+    const surfaceRefBlocks = surfaceRefs.map(({ id }) =>
+      editor.std.view.getBlock(id)
+    ) as SurfaceRefBlockComponent[];
+
+    expect(surfaceRefBlocks[0].querySelector('.ref-placeholder')).toBeFalsy();
+    expect(surfaceRefBlocks[1].querySelector('.ref-placeholder')).toBeFalsy();
   });
 });

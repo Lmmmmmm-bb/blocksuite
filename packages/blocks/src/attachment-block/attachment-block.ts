@@ -14,7 +14,7 @@ import { humanFileSize } from '@blocksuite/affine-shared/utils';
 import { Slice } from '@blocksuite/store';
 import { flip, offset } from '@floating-ui/dom';
 import { html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ref } from 'lit/directives/ref.js';
 import { styleMap } from 'lit/directives/style-map.js';
@@ -27,11 +27,12 @@ import { renderEmbedView } from './embed.js';
 import { styles } from './styles.js';
 import { checkAttachmentBlob, downloadAttachmentBlob } from './utils.js';
 
-@customElement('affine-attachment')
 export class AttachmentBlockComponent extends CaptionedBlockComponent<
   AttachmentBlockModel,
   AttachmentBlockService
 > {
+  static override styles = styles;
+
   protected _isDragging = false;
 
   protected _isResizing = false;
@@ -75,8 +76,6 @@ export class AttachmentBlockComponent extends CaptionedBlockComponent<
     }
   );
 
-  static override styles = styles;
-
   protected containerStyleMap = styleMap({
     position: 'relative',
     width: '100%',
@@ -103,6 +102,11 @@ export class AttachmentBlockComponent extends CaptionedBlockComponent<
   refreshData = () => {
     checkAttachmentBlob(this).catch(console.error);
   };
+
+  protected get embedView() {
+    if (!this.model.embed || !this.blobUrl) return;
+    return renderEmbedView(this.model, this.blobUrl, this.service.maxFileSize);
+  }
 
   private _selectBlock() {
     const selectionManager = this.host.selection;
@@ -253,11 +257,6 @@ export class AttachmentBlockComponent extends CaptionedBlockComponent<
             </div>`}
       </div>
     `;
-  }
-
-  protected get embedView() {
-    if (!this.model.embed || !this.blobUrl) return;
-    return renderEmbedView(this.model, this.blobUrl, this.service.maxFileSize);
   }
 
   @state()

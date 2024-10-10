@@ -1,7 +1,6 @@
 import { expect } from '@playwright/test';
 
 import {
-  SHORT_KEY,
   captureHistory,
   copyByKeyboard,
   dragBetweenCoords,
@@ -14,8 +13,9 @@ import {
   getClipboardText,
   getCurrentEditorDocId,
   getEditorLocator,
+  getPageSnapshot,
   initEmptyParagraphState,
-  mockQuickSearch,
+  mockParseDocUrlService,
   pasteByKeyboard,
   pasteContent,
   pressEnter,
@@ -24,6 +24,7 @@ import {
   resetHistory,
   setInlineRangeInSelectedRichText,
   setSelection,
+  SHORT_KEY,
   type,
   undoByClick,
   waitNextFrame,
@@ -33,7 +34,6 @@ import {
   assertClipItems,
   assertExists,
   assertRichTexts,
-  assertStoreMatchJSX,
   assertText,
   assertTitle,
 } from '../utils/asserts.js';
@@ -213,7 +213,7 @@ test('should keep first line format when pasted into a new line', async ({
   await assertBlockTypes(page, ['todo']);
 });
 
-test(scoped`auto identify url`, async ({ page }) => {
+test(scoped`auto identify url`, async ({ page }, testInfo) => {
   await enterPlaygroundRoom(page);
   await initEmptyParagraphState(page);
   await focusRichText(page);
@@ -236,42 +236,8 @@ test(scoped`auto identify url`, async ({ page }) => {
     },
     { clipData }
   );
-  await assertStoreMatchJSX(
-    page,
-    /*xml*/ `
-<affine:page>
-  <affine:note
-    prop:background="--affine-note-background-blue"
-    prop:displayMode="both"
-    prop:edgeless={
-      Object {
-        "style": Object {
-          "borderRadius": 0,
-          "borderSize": 4,
-          "borderStyle": "none",
-          "shadowType": "--affine-note-shadow-sticker",
-        },
-      }
-    }
-    prop:hidden={false}
-    prop:index="a0"
-  >
-    <affine:paragraph
-      prop:text={
-        <>
-          <text
-            insert="test "
-          />
-          <text
-            insert="https://www.google.com"
-            link="https://www.google.com"
-          />
-        </>
-      }
-      prop:type="text"
-    />
-  </affine:note>
-</affine:page>`
+  expect(await getPageSnapshot(page, true)).toMatchSnapshot(
+    `${testInfo.title}_final.json`
   );
 });
 
@@ -283,11 +249,29 @@ test(scoped`pasting internal url`, async ({ page }) => {
 
   await focusRichText(page);
   const docId = await getCurrentEditorDocId(page);
-  await mockQuickSearch(page, {
+  await mockParseDocUrlService(page, {
     'http://workspace/doc-id': docId,
   });
   await pasteContent(page, {
     'text/plain': 'http://workspace/doc-id',
+  });
+  await expect(page.locator('affine-reference')).toContainText('test page');
+});
+
+test(scoped`pasting internal url with params`, async ({ page }) => {
+  await enterPlaygroundRoom(page);
+  await initEmptyParagraphState(page);
+  await focusTitle(page);
+  await type(page, 'test page');
+
+  await focusRichText(page);
+  const docId = await getCurrentEditorDocId(page);
+  await mockParseDocUrlService(page, {
+    'http://workspace/doc-id?mode=page&blockIds=rL2_GXbtLU2SsJVfCSmh_': docId,
+  });
+  await pasteContent(page, {
+    'text/plain':
+      'http://workspace/doc-id?mode=page&blockIds=rL2_GXbtLU2SsJVfCSmh_',
   });
   await expect(page.locator('affine-reference')).toContainText('test page');
 });

@@ -1,7 +1,6 @@
-/// <reference types="vite/client" />
 import type { ListBlockModel } from '@blocksuite/affine-model';
 import type { BaseSelection, BlockComponent } from '@blocksuite/block-std';
-import type { InlineRange, InlineRangeProvider } from '@blocksuite/inline';
+import type { InlineRangeProvider } from '@blocksuite/inline';
 
 import { CaptionedBlockComponent } from '@blocksuite/affine-components/caption';
 import {
@@ -10,38 +9,32 @@ import {
   toggleRight,
 } from '@blocksuite/affine-components/icons';
 import {
+  DefaultInlineManagerExtension,
   type RichText,
-  markdownInput,
 } from '@blocksuite/affine-components/rich-text';
-import '@blocksuite/affine-components/rich-text';
 import '@blocksuite/affine-shared/commands';
-import { NOTE_SELECTOR } from '@blocksuite/affine-shared/consts';
-import { BLOCK_CHILDREN_CONTAINER_PADDING_LEFT } from '@blocksuite/affine-shared/consts';
+import {
+  BLOCK_CHILDREN_CONTAINER_PADDING_LEFT,
+  NOTE_SELECTOR,
+} from '@blocksuite/affine-shared/consts';
+import { DocModeProvider } from '@blocksuite/affine-shared/services';
 import { getViewportElement } from '@blocksuite/affine-shared/utils';
 import { getInlineRangeProvider } from '@blocksuite/block-std';
-import { IS_MAC } from '@blocksuite/global/env';
-import { effect } from '@lit-labs/preact-signals';
-import { type TemplateResult, html, nothing } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { effect } from '@preact/signals-core';
+import { html, nothing, type TemplateResult } from 'lit';
+import { query, state } from 'lit/decorators.js';
 
 import type { ListBlockService } from './list-service.js';
 
 import { correctNumberedListsOrderToPrev } from './commands/utils.js';
 import { listBlockStyles } from './styles.js';
-import { forwardDelete } from './utils/forward-delete.js';
 import { getListIcon } from './utils/get-list-icon.js';
 
-@customElement('affine-list')
 export class ListBlockComponent extends CaptionedBlockComponent<
   ListBlockModel,
   ListBlockService
 > {
-  private _getInlineRange = (): InlineRange | null => {
-    const richText = this._richTextElement;
-    const inlineEditor = richText?.inlineEditor;
-    const inlineRange = inlineEditor?.getInlineRange();
-    return inlineRange ?? null;
-  };
+  static override styles = listBlockStyles;
 
   private _inlineRangeProvider: InlineRangeProvider | null = null;
 
@@ -68,17 +61,32 @@ export class ListBlockComponent extends CaptionedBlockComponent<
     this._select();
   };
 
-  private _splitList = () => {
-    const inlineRange = this._getInlineRange();
-    if (!inlineRange) return;
-    this.std.command.exec('splitList', {
-      blockId: this.model.id,
-      inlineIndex: inlineRange.index,
-    });
-    return true;
-  };
+  get attributeRenderer() {
+    return this.inlineManager.getRenderer();
+  }
 
-  static override styles = listBlockStyles;
+  get attributesSchema() {
+    return this.inlineManager.getSchema();
+  }
+
+  get embedChecker() {
+    return this.inlineManager.embedChecker;
+  }
+
+  get inlineManager() {
+    return this.std.get(DefaultInlineManagerExtension.identifier);
+  }
+
+  get markdownShortcutHandler() {
+    return this.inlineManager.markdownShortcutHandler;
+  }
+
+  override get topContenteditableElement() {
+    if (this.std.get(DocModeProvider).getEditorMode() === 'edgeless') {
+      return this.closest<BlockComponent>(NOTE_SELECTOR);
+    }
+    return this.rootComponent;
+  }
 
   private _select() {
     const selection = this.host.selection;
@@ -127,96 +135,6 @@ export class ListBlockComponent extends CaptionedBlockComponent<
 
   override connectedCallback() {
     super.connectedCallback();
-
-    // TODO: move to service for better performance
-    this.bindHotKey({
-      Enter: ctx => {
-        const split = this._splitList();
-        if (split) {
-          ctx.get('keyboardState').raw.preventDefault();
-        }
-        return split;
-      },
-      'Mod-Enter': ctx => {
-        const split = this._splitList();
-        if (split) {
-          ctx.get('keyboardState').raw.preventDefault();
-        }
-        return split;
-      },
-      Tab: ctx => {
-        const { selectedModels } = this.std.command.exec('getSelectedModels', {
-          types: ['text'],
-        });
-        if (selectedModels?.length !== 1) {
-          return;
-        }
-        const inlineRange = this._getInlineRange();
-        if (!inlineRange) return;
-
-        ctx.get('keyboardState').raw.preventDefault();
-        this.std.command.exec('indentList', {
-          blockId: this.model.id,
-          inlineIndex: inlineRange.index,
-        });
-        return true;
-      },
-      'Shift-Tab': ctx => {
-        const { selectedModels } = this.std.command.exec('getSelectedModels', {
-          types: ['text'],
-        });
-        if (selectedModels?.length !== 1) {
-          return;
-        }
-        const inlineRange = this._getInlineRange();
-        if (!inlineRange) return;
-
-        ctx.get('keyboardState').raw.preventDefault();
-        this.std.command.exec('dedentList', {
-          blockId: this.model.id,
-          inlineIndex: inlineRange.index,
-        });
-        return true;
-      },
-      Backspace: ctx => {
-        const text = this.std.selection.find('text');
-        if (!text) return;
-        const isCollapsed = text.isCollapsed();
-        const isStart = isCollapsed && text.from.index === 0;
-        if (!isStart) return;
-
-        ctx.get('keyboardState').raw.preventDefault();
-        this.std.command.exec('listToParagraph', { id: text.from.blockId });
-        return true;
-      },
-      'Control-d': ctx => {
-        if (!IS_MAC) return;
-        const deleted = forwardDelete(this.std);
-        if (!deleted) return;
-        ctx.get('keyboardState').raw.preventDefault();
-        return true;
-      },
-      Delete: ctx => {
-        const deleted = forwardDelete(this.std);
-        if (!deleted) return;
-        ctx.get('keyboardState').raw.preventDefault();
-        return true;
-      },
-      Space: ctx => {
-        if (!markdownInput(this.std)) {
-          return;
-        }
-        ctx.get('keyboardState').raw.preventDefault();
-        return true;
-      },
-      'Shift-Space': ctx => {
-        if (!markdownInput(this.std)) {
-          return;
-        }
-        ctx.get('keyboardState').raw.preventDefault();
-        return true;
-      },
-    });
 
     this._inlineRangeProvider = getInlineRangeProvider(this);
 
@@ -289,33 +207,6 @@ export class ListBlockComponent extends CaptionedBlockComponent<
     `;
   }
 
-  get attributeRenderer() {
-    return this.inlineManager.getRenderer();
-  }
-
-  get attributesSchema() {
-    return this.inlineManager.getSchema();
-  }
-
-  get embedChecker() {
-    return this.inlineManager.embedChecker;
-  }
-
-  get inlineManager() {
-    return this.service?.inlineManager;
-  }
-
-  get markdownShortcutHandler() {
-    return this.inlineManager.markdownShortcutHandler;
-  }
-
-  override get topContenteditableElement() {
-    if (this.rootComponent?.tagName.toLowerCase() === 'affine-edgeless-root') {
-      return this.closest<BlockComponent>(NOTE_SELECTOR);
-    }
-    return this.rootComponent;
-  }
-
   @state()
   private accessor _isCollapsedWhenReadOnly = false;
 
@@ -325,10 +216,4 @@ export class ListBlockComponent extends CaptionedBlockComponent<
   override accessor blockContainerStyles = {
     margin: '10px 0',
   };
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'affine-list': ListBlockComponent;
-  }
 }

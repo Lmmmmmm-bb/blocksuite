@@ -3,15 +3,14 @@ import {
   HandIcon,
   SelectIcon,
 } from '@blocksuite/affine-components/icons';
-import { LitElement, css, html } from 'lit';
-import { customElement, query } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { query } from 'lit/decorators.js';
 
 import type { EdgelessTool } from '../../../types.js';
 
 import { getTooltipWithShortcut } from '../../utils.js';
 import { QuickToolMixin } from '../mixins/quick-tool.mixin.js';
 
-@customElement('edgeless-default-tool-button')
 export class EdgelessDefaultToolButton extends QuickToolMixin(LitElement) {
   static override styles = css`
     .current-icon {

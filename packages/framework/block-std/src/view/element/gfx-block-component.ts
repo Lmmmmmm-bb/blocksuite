@@ -5,7 +5,9 @@ import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
 import { nothing } from 'lit';
 
 import type { BlockService } from '../../extension/index.js';
+import type { GfxBlockElementModel } from '../../gfx/index.js';
 
+import { GfxControllerIdentifier } from '../../gfx/index.js';
 import { BlockComponent } from './block-component.js';
 
 export function isGfxBlockComponent(
@@ -17,12 +19,15 @@ export function isGfxBlockComponent(
 export const GfxElementSymbol = Symbol('GfxElement');
 
 export abstract class GfxBlockComponent<
-  GfxRootService extends BlockService = BlockService,
-  Model extends BlockModel = BlockModel,
+  Model extends GfxBlockElementModel = GfxBlockElementModel,
   Service extends BlockService = BlockService,
   WidgetName extends string = string,
 > extends BlockComponent<Model, Service, WidgetName> {
   [GfxElementSymbol] = true;
+
+  get gfx() {
+    return this.std.get(GfxControllerIdentifier);
+  }
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -31,10 +36,7 @@ export abstract class GfxBlockComponent<
   }
 
   getRenderingRect() {
-    const { xywh$ } = this.model as BlockModel<{
-      xywh: SerializedXYWH;
-      index: string;
-    }>;
+    const { xywh$ } = this.model;
 
     if (!xywh$) {
       throw new BlockSuiteError(
@@ -84,24 +86,16 @@ export abstract class GfxBlockComponent<
   }
 
   toZIndex(): string {
-    return `${1}`;
+    return this.gfx.layer.getZIndex(this.model).toString() ?? '0';
   }
 
   updateZIndex(): void {
     this.style.zIndex = this.toZIndex();
   }
-
-  get rootService() {
-    return this.std.getService(this.rootServiceFlavour) as GfxRootService;
-  }
-
-  abstract rootServiceFlavour: string;
 }
 
-// @ts-ignore
 export function toGfxBlockComponent<
-  GfxRootService extends BlockService,
-  Model extends BlockModel,
+  Model extends GfxBlockElementModel,
   Service extends BlockService,
   WidgetName extends string,
   B extends typeof BlockComponent<Model, Service, WidgetName>,
@@ -110,7 +104,9 @@ export function toGfxBlockComponent<
   return class extends CustomBlock {
     [GfxElementSymbol] = true;
 
-    rootServiceFlavour!: string;
+    get gfx() {
+      return this.std.get(GfxControllerIdentifier);
+    }
 
     override connectedCallback(): void {
       super.connectedCallback();
@@ -178,20 +174,16 @@ export function toGfxBlockComponent<
     }
 
     toZIndex(): string {
-      return `${1}`;
+      return this.gfx.layer.getZIndex(this.model).toString() ?? '0';
     }
 
     updateZIndex(): void {
       this.style.zIndex = this.toZIndex();
     }
-
-    get rootService() {
-      return this.std.getService(this.rootServiceFlavour) as GfxRootService;
-    }
   } as B & {
     new (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any[]
-    ): GfxBlockComponent<GfxRootService>;
+    ): GfxBlockComponent;
   };
 }

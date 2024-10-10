@@ -1,14 +1,11 @@
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { EdgelessTool } from '../../../types.js';
 
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
 import { FrameConfig } from './config.js';
-import { createFrame } from './service.js';
 
-@customElement('edgeless-frame-menu')
 export class EdgelessFrameMenu extends EdgelessToolbarToolMixin(LitElement) {
   static override styles = css`
     :host {
@@ -82,7 +79,10 @@ export class EdgelessFrameMenu extends EdgelessToolbarToolMixin(LitElement) {
             item => item.name,
             (item, index) => html`
               <div
-                @click=${() => createFrame(edgeless, item.wh)}
+                @click=${() => {
+                  edgeless.tools.setEdgelessTool({ type: 'default' });
+                  edgeless.service.frame.createFrameOnViewportCenter(item.wh);
+                }}
                 class="frame-add-button ${index}"
                 data-name="${item.name}"
                 data-w="${item.wh[0]}"

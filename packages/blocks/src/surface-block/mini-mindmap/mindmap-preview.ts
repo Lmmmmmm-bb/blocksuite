@@ -1,3 +1,5 @@
+import type { SurfaceBlockModel } from '@blocksuite/affine-block-surface';
+
 import {
   MindmapStyleFour,
   MindmapStyleOne,
@@ -5,34 +7,26 @@ import {
   MindmapStyleTwo,
 } from '@blocksuite/affine-components/icons';
 import {
-  BlockStdScope,
-  type EditorHost,
-  WithDisposable,
-} from '@blocksuite/block-std';
-import { noop } from '@blocksuite/global/utils';
-import { type Doc, Job } from '@blocksuite/store';
+  type MindmapElementModel,
+  MindmapStyle,
+} from '@blocksuite/affine-model';
+import { BlockStdScope, type EditorHost } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import {
+  type Doc,
   DocCollection,
   type DocCollectionOptions,
   IdGeneratorType,
+  Job,
   Schema,
 } from '@blocksuite/store';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { css, html, LitElement, nothing } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import type { MindmapElementModel } from '../element-model/mindmap.js';
-import type { SurfaceBlockModel } from '../surface-model.js';
-
 import { MarkdownAdapter } from '../../_common/adapters/markdown.js';
-import { MindmapStyle } from '../element-model/utils/mindmap/style.js';
-import { MindmapRootBlock } from './mindmap-root-block.js';
 import { MiniMindmapSchema, MiniMindmapSpecs } from './spec.js';
-import { MindmapSurfaceBlock } from './surface-block.js';
-
-noop(MindmapRootBlock);
-noop(MindmapSurfaceBlock);
 
 const mindmapStyles = [
   [MindmapStyle.ONE, MindmapStyleOne],
@@ -43,7 +37,6 @@ const mindmapStyles = [
 
 type Unpacked<T> = T extends (infer U)[] ? U : T;
 
-@customElement('mini-mindmap-preview')
 export class MiniMindmapPreview extends WithDisposable(LitElement) {
   static override styles = css`
     mini-mindmap-root-block,
@@ -99,6 +92,14 @@ export class MiniMindmapPreview extends WithDisposable(LitElement) {
 
   surface?: SurfaceBlockModel;
 
+  get _mindmap(): MindmapElementModel | null {
+    return (
+      (this.surface?.getElementById(
+        this.mindmapId || ''
+      ) as MindmapElementModel) ?? null
+    );
+  }
+
   private _createTemporaryDoc() {
     const schema = new Schema();
     schema.register(MiniMindmapSchema);
@@ -123,14 +124,6 @@ export class MiniMindmapPreview extends WithDisposable(LitElement) {
       doc,
       surface,
     };
-  }
-
-  get _mindmap(): MindmapElementModel | null {
-    return (
-      (this.surface?.getElementById(
-        this.mindmapId || ''
-      ) as MindmapElementModel) ?? null
-    );
   }
 
   private _switchStyle(style: MindmapStyle) {
@@ -170,6 +163,7 @@ export class MiniMindmapPreview extends WithDisposable(LitElement) {
       children: mindmapNode,
       style: this.mindmapStyle ?? MindmapStyle.FOUR,
     });
+    this.surface.getElementById(this.mindmapId) as MindmapElementModel;
 
     const centerPosition = this._mindmap?.tree.element.xywh;
 

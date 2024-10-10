@@ -1,55 +1,30 @@
 import type { EdgelessTextBlockModel } from '@blocksuite/affine-model';
 import type { BlockComponent } from '@blocksuite/block-std';
 
+import { TextUtils } from '@blocksuite/affine-block-surface';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import { matchFlavours } from '@blocksuite/affine-shared/utils';
 import { GfxBlockComponent } from '@blocksuite/block-std';
 import { Bound } from '@blocksuite/global/utils';
 import { css, html } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { query, state } from 'lit/decorators.js';
 import { type StyleInfo, styleMap } from 'lit/directives/style-map.js';
 
 import type {
   EdgelessRootBlockComponent,
   EdgelessRootService,
 } from '../root-block/index.js';
-import type { EdgelessTextBlockService } from './edgeless-text-service.js';
 
 import { HandleDirection } from '../root-block/edgeless/components/resize/resize-handles.js';
 import {
   DefaultModeDragType,
   DefaultToolController,
 } from '../root-block/edgeless/tools/default-tool.js';
-import { wrapFontFamily } from '../surface-block/utils/font.js';
 
 export const EDGELESS_TEXT_BLOCK_MIN_WIDTH = 50;
 export const EDGELESS_TEXT_BLOCK_MIN_HEIGHT = 50;
 
-@customElement('affine-edgeless-text')
-export class EdgelessTextBlockComponent extends GfxBlockComponent<
-  EdgelessRootService,
-  EdgelessTextBlockModel,
-  EdgelessTextBlockService
-> {
-  private _horizontalResizing = false;
-
-  private _resizeObserver = new ResizeObserver(() => {
-    if (this.doc.readonly) {
-      return;
-    }
-
-    if (!this.rootService) {
-      console.error('rootService is not ready in edgeless-text-block');
-      return;
-    }
-
-    if (this._editing && !this.model.hasMaxWidth) {
-      this._updateW();
-    }
-
-    this._updateH();
-  });
-
+export class EdgelessTextBlockComponent extends GfxBlockComponent<EdgelessTextBlockModel> {
   static override styles = css`
     .edgeless-text-block-container[data-max-width='false'] .inline-editor span {
       word-break: normal !important;
@@ -57,16 +32,46 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
     }
   `;
 
-  override rootServiceFlavour = 'affine:page';
+  private _horizontalResizing = false;
 
-  private _initDragEffect() {
-    const edgelessSelection = this.rootService.selection;
-    const selectedRect = this.parentComponent.selectedRect;
-    const disposables = this.disposables;
-
-    if (!edgelessSelection || !selectedRect) {
+  private _resizeObserver = new ResizeObserver(() => {
+    if (this.doc.readonly) {
       return;
     }
+
+    if (!this._editing) {
+      return;
+    }
+
+    if (!this.model.hasMaxWidth) {
+      this._updateW();
+    }
+
+    this._updateH();
+  });
+
+  get dragMoving() {
+    const controller = this.rootService.tool.currentController;
+    return (
+      controller instanceof DefaultToolController &&
+      controller.dragType === DefaultModeDragType.ContentMoving
+    );
+  }
+
+  get rootService() {
+    return this.std.getService('affine:page') as EdgelessRootService;
+  }
+
+  private _initDragEffect() {
+    const disposables = this.disposables;
+    const edgelessSelection = this.rootService.selection;
+    const rootComponent = this
+      .rootComponent as EdgelessRootBlockComponent | null;
+
+    if (!rootComponent || !edgelessSelection) return;
+
+    const selectedRect = rootComponent.selectedRect;
+    if (!selectedRect) return;
 
     disposables.add(
       selectedRect.slots.dragStart
@@ -77,6 +82,18 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
             selectedRect.dragDirection === HandleDirection.Right
           ) {
             this._horizontalResizing = true;
+          }
+        })
+    );
+    disposables.add(
+      selectedRect.slots.dragMove
+        .filter(() => edgelessSelection.selectedElements.includes(this.model))
+        .on(() => {
+          if (
+            selectedRect.dragDirection === HandleDirection.Left ||
+            selectedRect.dragDirection === HandleDirection.Right
+          ) {
+            this._updateH();
           }
         })
     );
@@ -98,8 +115,8 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
     const bound = Bound.deserialize(this.model.xywh);
     const rect = this._textContainer.getBoundingClientRect();
     bound.h = Math.max(
-      rect.height / this.rootService.zoom,
-      EDGELESS_TEXT_BLOCK_MIN_HEIGHT * this.rootService.zoom
+      rect.height / this.gfx.viewport.zoom,
+      EDGELESS_TEXT_BLOCK_MIN_HEIGHT * this.gfx.viewport.zoom
     );
 
     this.doc.updateBlock(this.model, {
@@ -111,8 +128,8 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
     const bound = Bound.deserialize(this.model.xywh);
     const rect = this._textContainer.getBoundingClientRect();
     bound.w = Math.max(
-      rect.width / this.rootService.zoom,
-      EDGELESS_TEXT_BLOCK_MIN_WIDTH * this.rootService.zoom
+      rect.width / this.gfx.viewport.zoom,
+      EDGELESS_TEXT_BLOCK_MIN_WIDTH * this.gfx.viewport.zoom
     );
 
     this.doc.updateBlock(this.model, {
@@ -270,7 +287,7 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
       x: bound.x,
       y: bound.y,
       w,
-      h: bound.h,
+      h: bound.h / scale,
       rotate,
       zIndex: this.toZIndex(),
     };
@@ -321,7 +338,7 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
 
     const style = styleMap({
       color,
-      fontFamily: wrapFontFamily(fontFamily),
+      fontFamily: TextUtils.wrapFontFamily(fontFamily),
       fontStyle,
       fontWeight,
       textAlign,
@@ -334,10 +351,6 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
         </div>
       </div>
     `;
-  }
-
-  override toZIndex() {
-    return `${this.rootService.layer.getZIndex(this.model)}`;
   }
 
   tryFocusEnd() {
@@ -357,18 +370,6 @@ export class EdgelessTextBlockComponent extends GfxBlockComponent<
         }),
       ]);
     }
-  }
-
-  get dragMoving() {
-    const controller = this.rootService.tool.currentController;
-    return (
-      controller instanceof DefaultToolController &&
-      controller.dragType === DefaultModeDragType.ContentMoving
-    );
-  }
-
-  override get parentComponent() {
-    return super.parentComponent as EdgelessRootBlockComponent;
   }
 
   @state()

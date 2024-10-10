@@ -1,8 +1,10 @@
 dist
 .next
-pnpm-lock.yaml
+yarn.lock
 tests/snapshots/
 __snapshots__/
-
-/.nx/cache
-/.nx/workspace-data
+tsconfig.tsbuildinfo
+**/docs/api/
+.coverage/
+.nx/
+**/test-results/

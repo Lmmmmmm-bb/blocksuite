@@ -2,9 +2,13 @@ import { BlockViewExtension, type ExtensionType } from '@blocksuite/block-std';
 import { literal } from 'lit/static-html.js';
 
 export const AIChatBlockSpec: ExtensionType[] = [
-  BlockViewExtension('affine:embed-ai-chat', literal`affine-ai-chat`),
-];
+  BlockViewExtension('affine:embed-ai-chat', model => {
+    const parent = model.doc.getParent(model.id);
 
-export const EdgelessAIChatBlockSpec: ExtensionType[] = [
-  BlockViewExtension('affine:embed-ai-chat', literal`affine-edgeless-ai-chat`),
+    if (parent?.flavour === 'affine:surface') {
+      return literal`affine-edgeless-ai-chat`;
+    }
+
+    return literal`affine-ai-chat`;
+  }),
 ];

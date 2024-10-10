@@ -1,6 +1,6 @@
-import * as figmaSquircle from 'figma-squircle';
-import { LitElement, type TemplateResult, css, html, svg } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { getFigmaSquircleSvgPath } from '@blocksuite/global/utils';
+import { css, html, LitElement, svg, type TemplateResult } from 'lit';
+import { property, state } from 'lit/decorators.js';
 
 /**
  * ### A component to use figma 'smoothing radius'
@@ -41,10 +41,7 @@ import { customElement, property, state } from 'lit/decorators.js';
  * }
  * ```
  */
-@customElement('smooth-corner')
 export class SmoothCorner extends LitElement {
-  private _resizeObserver: ResizeObserver | null = null;
-
   static override styles = css`
     :host {
       position: relative;
@@ -66,6 +63,17 @@ export class SmoothCorner extends LitElement {
       height: 100%;
     }
   `;
+
+  private _resizeObserver: ResizeObserver | null = null;
+
+  get _path() {
+    return getFigmaSquircleSvgPath({
+      width: this.width,
+      height: this.height,
+      cornerRadius: this.borderRadius, // defaults to 0
+      cornerSmoothing: this.smooth, // cornerSmoothing goes from 0 to 1
+    });
+  }
 
   constructor() {
     super();
@@ -89,16 +97,6 @@ export class SmoothCorner extends LitElement {
     >
       ${path}
     </svg>`;
-  }
-
-  get _path() {
-    // return curvePath(this._points);
-    return figmaSquircle.getSvgPath({
-      width: this.width,
-      height: this.height,
-      cornerRadius: this.borderRadius, // defaults to 0
-      cornerSmoothing: this.smooth, // cornerSmoothing goes from 0 to 1
-    });
   }
 
   override connectedCallback(): void {

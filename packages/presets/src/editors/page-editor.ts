@@ -1,20 +1,18 @@
 import type { Doc } from '@blocksuite/store';
 
-import { BlockStdScope } from '@blocksuite/block-std';
 import {
+  BlockStdScope,
   EditorHost,
   ShadowlessElement,
-  WithDisposable,
 } from '@blocksuite/block-std';
 import { PageEditorBlockSpecs } from '@blocksuite/blocks';
-import { noop } from '@blocksuite/global/utils';
+import { noop, WithDisposable } from '@blocksuite/global/utils';
 import { css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { guard } from 'lit/directives/guard.js';
 
 noop(EditorHost);
 
-@customElement('page-editor')
 export class PageEditor extends WithDisposable(ShadowlessElement) {
   static override styles = css`
     page-editor {
@@ -46,6 +44,14 @@ export class PageEditor extends WithDisposable(ShadowlessElement) {
       height: 100%;
     }
   `;
+
+  get host() {
+    try {
+      return this.std.host;
+    } catch {
+      return null;
+    }
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -88,14 +94,6 @@ export class PageEditor extends WithDisposable(ShadowlessElement) {
         doc: this.doc,
         extensions: this.specs,
       });
-    }
-  }
-
-  get host() {
-    try {
-      return this.std.host;
-    } catch {
-      return null;
     }
   }
 

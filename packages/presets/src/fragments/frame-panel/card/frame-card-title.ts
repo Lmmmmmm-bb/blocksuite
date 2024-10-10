@@ -1,10 +1,10 @@
 import type { FrameBlockModel } from '@blocksuite/blocks';
 import type { Y } from '@blocksuite/store';
 
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
-import { DisposableGroup } from '@blocksuite/global/utils';
-import { type PropertyValues, css, html } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { DisposableGroup, WithDisposable } from '@blocksuite/global/utils';
+import { css, html, type PropertyValues } from 'lit';
+import { property, query } from 'lit/decorators.js';
 
 import { FrameCardTitleEditor } from './frame-card-title-editor.js';
 
@@ -57,8 +57,9 @@ const styles = css`
 
 export const AFFINE_FRAME_CARD_TITLE = 'affine-frame-card-title';
 
-@customElement(AFFINE_FRAME_CARD_TITLE)
 export class FrameCardTitle extends WithDisposable(ShadowlessElement) {
+  static override styles = styles;
+
   private _clearTitleDisposables = () => {
     this._titleDisposables?.dispose();
     this._titleDisposables = null;
@@ -81,8 +82,6 @@ export class FrameCardTitle extends WithDisposable(ShadowlessElement) {
   private _updateElement = () => {
     this.requestUpdate();
   };
-
-  static override styles = styles;
 
   private _setFrameDisposables(title: Y.Text) {
     this._clearTitleDisposables();

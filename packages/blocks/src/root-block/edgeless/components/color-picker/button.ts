@@ -1,8 +1,8 @@
 import type { EditorMenuButton } from '@blocksuite/affine-components/toolbar';
 
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { choose } from 'lit/directives/choose.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
@@ -14,14 +14,10 @@ import type {
   PickColorType,
 } from './types.js';
 
-import '../panel/color-panel.js';
-import './color-picker.js';
-import './custom-button.js';
 import { keepColor, preprocessColor } from './utils.js';
 
 type Type = 'normal' | 'custom';
 
-@customElement('edgeless-color-picker-button')
 export class EdgelessColorPickerButton extends WithDisposable(LitElement) {
   #select = (e: ColorEvent) => {
     this.#pick({ palette: e.detail });
@@ -36,6 +32,28 @@ export class EdgelessColorPickerButton extends WithDisposable(LitElement) {
     // refresh menu's position
     this.menuButton.show(true);
   };
+
+  get colorWithoutAlpha() {
+    return this.isCSSVariable ? this.color : keepColor(this.color);
+  }
+
+  get customButtonStyle() {
+    let b = 'transparent';
+    let c = 'transparent';
+    if (!this.isCSSVariable) {
+      b = 'var(--affine-background-overlay-panel-color)';
+      c = keepColor(this.color);
+    }
+    return { '--b': b, '--c': c };
+  }
+
+  get isCSSVariable() {
+    return this.color.startsWith('--');
+  }
+
+  get tabContentPadding() {
+    return `${this.tabType === 'custom' ? 0 : 8}px`;
+  }
 
   #pick(detail: PickColorDetail) {
     this.pick?.({ type: 'start' });
@@ -123,36 +141,14 @@ export class EdgelessColorPickerButton extends WithDisposable(LitElement) {
     `;
   }
 
-  get colorWithoutAlpha() {
-    return this.isCSSVariable ? this.color : keepColor(this.color);
-  }
-
-  get customButtonStyle() {
-    let b = 'transparent';
-    let c = 'transparent';
-    if (!this.isCSSVariable) {
-      b = 'var(--affine-background-overlay-panel-color)';
-      c = keepColor(this.color);
-    }
-    return { '--b': b, '--c': c };
-  }
-
-  get isCSSVariable() {
-    return this.color.startsWith('--');
-  }
-
-  get tabContentPadding() {
-    return `${this.tabType === 'custom' ? 0 : 8}px`;
-  }
-
   @property()
   accessor color!: string;
 
-  @property()
-  accessor colorType: PickColorType = 'palette';
-
   @property({ attribute: false })
   accessor colors: { type: ModeType; value: string }[] = [];
+
+  @property()
+  accessor colorType: PickColorType = 'palette';
 
   @property({ attribute: false })
   accessor hollowCircle: boolean = false;

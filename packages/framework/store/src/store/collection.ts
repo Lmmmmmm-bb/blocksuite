@@ -1,3 +1,5 @@
+import type { BlockSuiteFlags } from '@blocksuite/global/types';
+
 import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
 import { type Logger, NoopLogger, Slot } from '@blocksuite/global/utils';
 import {
@@ -10,6 +12,7 @@ import {
   MemoryBlobSource,
   NoopDocSource,
 } from '@blocksuite/sync';
+import clonedeep from 'lodash.clonedeep';
 import merge from 'lodash.merge';
 import { Awareness } from 'y-protocols/awareness.js';
 import * as Y from 'yjs';
@@ -51,14 +54,16 @@ const FLAGS_PRESET = {
   enable_pie_menu: false,
   enable_database_number_formatting: false,
   enable_database_attachment_note: false,
+  enable_database_full_width: false,
   enable_legacy_validation: true,
-  enable_expand_database_block: false,
   enable_block_query: false,
   enable_lasso_tool: false,
   enable_edgeless_text: true,
   enable_ai_onboarding: false,
   enable_ai_chat_block: false,
   enable_color_picker: false,
+  enable_mind_map_import: false,
+  enable_advanced_block_visibility: false,
   readonly: {},
 } satisfies BlockSuiteFlags;
 
@@ -68,9 +73,9 @@ export interface StackItem {
 
 @test
 export class DocCollection extends DocCollectionAddonType {
-  protected readonly _schema: Schema;
-
   static Y = Y;
+
+  protected readonly _schema: Schema;
 
   readonly awarenessStore: AwarenessStore;
 
@@ -97,6 +102,28 @@ export class DocCollection extends DocCollectionAddonType {
     docCreated: new Slot<string>(),
   };
 
+  get docs() {
+    return this.blockCollections;
+  }
+
+  get isEmpty() {
+    if (this.doc.store.clients.size === 0) return true;
+
+    let flag = false;
+    if (this.doc.store.clients.size === 1) {
+      const items = Array.from(this.doc.store.clients.values())[0];
+      // workspaceVersion and pageVersion were set when the collection is initialized
+      if (items.length <= 2) {
+        flag = true;
+      }
+    }
+    return flag;
+  }
+
+  get schema() {
+    return this._schema;
+  }
+
   constructor({
     id,
     schema,
@@ -118,7 +145,7 @@ export class DocCollection extends DocCollectionAddonType {
     this.doc = new BlockSuiteDoc({ guid: id });
     this.awarenessStore = new AwarenessStore(
       new Awareness<RawAwarenessState>(this.doc),
-      merge({ ...FLAGS_PRESET }, defaultFlags)
+      merge(clonedeep(FLAGS_PRESET), defaultFlags)
     );
 
     this.awarenessSync = new AwarenessEngine(
@@ -267,27 +294,5 @@ export class DocCollection extends DocCollectionAddonType {
 
   waitForSynced() {
     return this.docSync.waitForSynced();
-  }
-
-  get docs() {
-    return this.blockCollections;
-  }
-
-  get isEmpty() {
-    if (this.doc.store.clients.size === 0) return true;
-
-    let flag = false;
-    if (this.doc.store.clients.size === 1) {
-      const items = Array.from(this.doc.store.clients.values())[0];
-      // workspaceVersion and pageVersion were set when the collection is initialized
-      if (items.length <= 2) {
-        flag = true;
-      }
-    }
-    return flag;
-  }
-
-  get schema() {
-    return this._schema;
   }
 }

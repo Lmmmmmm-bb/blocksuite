@@ -1,41 +1,37 @@
 import type { ParagraphBlockModel } from '@blocksuite/affine-model';
-import type { EmbedCardStyle } from '@blocksuite/affine-model';
-import type { BlockComponent, EditorHost } from '@blocksuite/block-std';
+import type {
+  BaseSelection,
+  BlockComponent,
+  EditorHost,
+} from '@blocksuite/block-std';
 import type { BlockModel } from '@blocksuite/store';
 
 import { BLOCK_CHILDREN_CONTAINER_PADDING_LEFT } from '@blocksuite/affine-shared/consts';
+import {
+  DocModeProvider,
+  type DropType,
+} from '@blocksuite/affine-shared/services';
 import {
   findClosestBlockComponent,
   getBlockProps,
   getClosestBlockComponentByElement,
   getClosestBlockComponentByPoint,
-  isInsidePageEditor,
+  getRectByBlockComponent,
   matchFlavours,
 } from '@blocksuite/affine-shared/utils';
-import {
-  type BaseSelection,
-  PathFinder,
-  type PointerEventState,
-} from '@blocksuite/block-std';
-import { Bound, Point, Rect, assertExists } from '@blocksuite/global/utils';
-
-import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
+import { Point, Rect } from '@blocksuite/global/utils';
 
 import {
   getDropRectByPoint,
   getHoveringNote,
-  getRectByBlockComponent,
 } from '../../../_common/utils/index.js';
-import { isEmbedSyncedDocBlock } from '../../edgeless/utils/query.js';
 import {
   DRAG_HANDLE_CONTAINER_HEIGHT,
   DRAG_HANDLE_CONTAINER_OFFSET_LEFT,
   DRAG_HANDLE_CONTAINER_OFFSET_LEFT_LIST,
   type DropResult,
-  type DropType,
   EDGELESS_NOTE_EXTRA_PADDING,
   NOTE_CONTAINER_PADDING,
-  type OnDragEndProps,
 } from './config.js';
 
 const heightMap: Record<string, number> = {
@@ -69,11 +65,17 @@ export const getDragHandleContainerHeight = (model: BlockModel) => {
 // To check if the block is a child block of the selected blocks
 export const containChildBlock = (
   blocks: BlockComponent[],
-  childPath: string[]
+  childModel: BlockModel
 ) => {
   return blocks.some(block => {
-    const path = block.path;
-    return PathFinder.includes(childPath, path);
+    let currentBlock: BlockModel | null = childModel;
+    while (currentBlock) {
+      if (currentBlock.id === block.model.id) {
+        return true;
+      }
+      currentBlock = block.doc.getParent(currentBlock.id);
+    }
+    return false;
   });
 };
 
@@ -86,15 +88,6 @@ export const insideDatabaseTable = (element: Element) => {
   return !!element.closest('.affine-database-block-table');
 };
 
-export const captureEventTarget = (target: EventTarget | null) => {
-  const isElementOrNode = target instanceof Element || target instanceof Node;
-  return isElementOrNode
-    ? target instanceof Element
-      ? target
-      : target.parentElement
-    : null;
-};
-
 export const includeTextSelection = (selections: BaseSelection[]) => {
   return selections.some(selection => selection.type === 'text');
 };
@@ -102,20 +95,14 @@ export const includeTextSelection = (selections: BaseSelection[]) => {
 /**
  * Check if the path of two blocks are equal
  */
-export const isBlockPathEqual = (
-  path1: string | null | undefined,
-  path2: string | null | undefined
+export const isBlockIdEqual = (
+  id1: string | null | undefined,
+  id2: string | null | undefined
 ) => {
-  if (!path1 || !path2) {
+  if (!id1 || !id2) {
     return false;
   }
-  return path1 === path2;
-};
-
-export const getContainerOffsetPoint = (state: PointerEventState) => {
-  const x = state.point.x + state.containerOffset.x;
-  const y = state.point.y + state.containerOffset.y;
-  return new Point(x, y);
+  return id1 === id2;
 };
 
 export const isOutOfNoteBlock = (
@@ -126,7 +113,8 @@ export const isOutOfNoteBlock = (
 ) => {
   // TODO: need to find a better way to check if the point is out of note block
   const rect = noteBlock.getBoundingClientRect();
-  const insidePageEditor = isInsidePageEditor(editorHost);
+  const insidePageEditor =
+    editorHost.std.get(DocModeProvider).getEditorMode() === 'page';
   const padding =
     (NOTE_CONTAINER_PADDING +
       (insidePageEditor ? 0 : EDGELESS_NOTE_EXTRA_PADDING)) *
@@ -148,7 +136,9 @@ export const getClosestNoteBlock = (
   rootComponent: BlockComponent,
   point: Point
 ) => {
-  return isInsidePageEditor(editorHost)
+  const isInsidePageEditor =
+    editorHost.std.get(DocModeProvider).getEditorMode() === 'page';
+  return isInsidePageEditor
     ? findClosestBlockComponent(rootComponent, point, 'affine-note')
     : getHoveringNote(point)?.closest('affine-edgeless-note');
 };
@@ -178,8 +168,7 @@ export const getClosestBlockByPoint = (
     '.affine-note-block-container > .affine-block-children-container > [data-block-id]';
 
   const closestBlock = (
-    block &&
-    PathFinder.includes(block.path, (closestNoteBlock as BlockComponent).path)
+    block && containChildBlock([closestNoteBlock], block.model)
       ? block
       : findClosestBlockComponent(
           closestNoteBlock as BlockComponent,
@@ -355,141 +344,4 @@ export function getDuplicateBlocks(blocks: BlockModel[]) {
     blockProps: getBlockProps(block),
   }));
   return duplicateBlocks;
-}
-
-export function convertDragPreviewDocToEdgeless({
-  blockComponent,
-  dragPreview,
-  cssSelector,
-  width,
-  height,
-  noteScale,
-  state,
-}: OnDragEndProps & {
-  blockComponent: BlockComponent;
-  cssSelector: string;
-  width?: number;
-  height?: number;
-  style?: EmbedCardStyle;
-}): boolean {
-  const edgelessRoot = blockComponent.closest(
-    'affine-edgeless-root'
-  ) as EdgelessRootBlockComponent;
-  if (!edgelessRoot) {
-    return false;
-  }
-
-  const previewEl = dragPreview.querySelector(cssSelector);
-  if (!previewEl) {
-    return false;
-  }
-  const rect = previewEl.getBoundingClientRect();
-  const border = 2;
-  const { left: viewportLeft, top: viewportTop } = edgelessRoot.viewport;
-  const currentViewBound = new Bound(
-    rect.x - viewportLeft,
-    rect.y - viewportTop,
-    rect.width + border / noteScale,
-    rect.height + border / noteScale
-  );
-  const currentModelBound =
-    edgelessRoot.service.viewport.toModelBound(currentViewBound);
-
-  // Except for embed synced doc block
-  // The width and height of other card style should be fixed
-  const newBound = isEmbedSyncedDocBlock(blockComponent.model)
-    ? new Bound(
-        currentModelBound.x,
-        currentModelBound.y,
-        (currentModelBound.w ?? width) * noteScale,
-        (currentModelBound.h ?? height) * noteScale
-      )
-    : new Bound(
-        currentModelBound.x,
-        currentModelBound.y,
-        (width ?? currentModelBound.w) * noteScale,
-        (height ?? currentModelBound.h) * noteScale
-      );
-
-  const blockModel = blockComponent.model;
-  const blockProps = getBlockProps(blockModel);
-
-  const blockId = edgelessRoot.service.addBlock(
-    blockComponent.flavour,
-    {
-      ...blockProps,
-      xywh: newBound.serialize(),
-    },
-    edgelessRoot.surfaceBlockModel
-  );
-
-  // Embed synced doc block should extend the note scale
-  const newBlock = edgelessRoot.service.getElementById(blockId);
-  if (isEmbedSyncedDocBlock(newBlock)) {
-    edgelessRoot.service.updateElement(newBlock.id, {
-      scale: noteScale,
-    });
-  }
-
-  const doc = blockComponent.doc;
-  const host = blockComponent.host;
-  const altKey = state.raw.altKey;
-  if (!altKey) {
-    doc.deleteBlock(blockModel);
-    host.selection.setGroup('note', []);
-  }
-
-  edgelessRoot.service.selection.set({
-    elements: [blockId],
-    editing: false,
-  });
-
-  return true;
-}
-
-export function convertDragPreviewEdgelessToDoc({
-  blockComponent,
-  dropBlockId,
-  dropType,
-  state,
-  style,
-}: OnDragEndProps & {
-  blockComponent: BlockComponent;
-  style?: EmbedCardStyle;
-}): boolean {
-  const doc = blockComponent.doc;
-  const host = blockComponent.host;
-  const targetBlock = doc.getBlockById(dropBlockId);
-  if (!targetBlock) return false;
-
-  const shouldInsertIn = dropType === 'in';
-  const parentBlock = shouldInsertIn ? targetBlock : doc.getParent(targetBlock);
-  assertExists(parentBlock);
-  const parentIndex = shouldInsertIn
-    ? 0
-    : parentBlock.children.indexOf(targetBlock) +
-      (dropType === 'after' ? 1 : 0);
-
-  const blockModel = blockComponent.model;
-
-  const { width, height, xywh, rotate, zIndex, ...blockProps } =
-    getBlockProps(blockModel);
-  if (style) {
-    blockProps.style = style;
-  }
-
-  doc.addBlock(
-    blockModel.flavour as never,
-    blockProps,
-    parentBlock,
-    parentIndex
-  );
-
-  const altKey = state.raw.altKey;
-  if (!altKey) {
-    doc.deleteBlock(blockModel);
-    host.selection.setGroup('gfx', []);
-  }
-
-  return true;
 }

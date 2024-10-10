@@ -63,7 +63,7 @@ BlockSuite works with all common frameworks, you can start from these examples t
 To use BlockSuite in your existing project, simply install these core packages:
 
 ```sh
-pnpm install \
+yarn install \
   @blocksuite/presets@canary \
   @blocksuite/blocks@canary \
   @blocksuite/store@canary
@@ -80,8 +80,6 @@ Then you can use the prebuilt `PageEditor` out of the box, with an initialized `
 ::: code-sandbox {coderHeight=420 previewHeight=300}
 
 ```ts /index.ts [active]
-import '@blocksuite/presets/themes/affine.css';
-
 import { createEmptyDoc, PageEditor } from '@blocksuite/presets';
 import { Text } from '@blocksuite/store';
 

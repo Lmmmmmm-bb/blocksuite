@@ -1,12 +1,10 @@
+import { TextUtils } from '@blocksuite/affine-block-surface';
 import { CheckIcon } from '@blocksuite/affine-components/icons';
 import { FontFamily, FontFamilyList } from '@blocksuite/affine-model';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import { wrapFontFamily } from '../../../../surface-block/utils/font.js';
-
-@customElement('edgeless-font-family-panel')
 export class EdgelessFontFamilyPanel extends LitElement {
   static override styles = css`
     :host {
@@ -37,7 +35,7 @@ export class EdgelessFontFamilyPanel extends LitElement {
         return html`
           <edgeless-tool-icon-button
             data-font="${name}"
-            style="font-family: ${wrapFontFamily(font)}"
+            style="font-family: ${TextUtils.wrapFontFamily(font)}"
             .iconContainerPadding=${[4, 8]}
             .justify=${'space-between'}
             .active=${active}

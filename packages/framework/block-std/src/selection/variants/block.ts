@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { SelectionExtension } from '../../extension/selection.js';
 import { BaseSelection } from '../base.js';
 
 const BlockSelectionSchema = z.object({
@@ -12,10 +13,8 @@ export class BlockSelection extends BaseSelection {
   static override type = 'block';
 
   static override fromJSON(json: Record<string, unknown>): BlockSelection {
-    BlockSelectionSchema.parse(json);
-    return new BlockSelection({
-      blockId: json.blockId as string,
-    });
+    const result = BlockSelectionSchema.parse(json);
+    return new BlockSelection(result);
   }
 
   override equals(other: BaseSelection): boolean {
@@ -33,10 +32,4 @@ export class BlockSelection extends BaseSelection {
   }
 }
 
-declare global {
-  namespace BlockSuite {
-    interface Selection {
-      block: typeof BlockSelection;
-    }
-  }
-}
+export const BlockSelectionExtension = SelectionExtension(BlockSelection);

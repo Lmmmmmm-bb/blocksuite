@@ -6,20 +6,24 @@ import {
   EMBED_CARD_WIDTH,
 } from '@blocksuite/affine-shared/consts';
 import { toGfxBlockComponent } from '@blocksuite/block-std';
-import { customElement } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { EdgelessRootService } from '../root-block/index.js';
 
 import { AttachmentBlockComponent } from './attachment-block.js';
 
-@customElement('affine-edgeless-attachment')
 export class AttachmentEdgelessBlockComponent extends toGfxBlockComponent(
   AttachmentBlockComponent
 ) {
   protected override _whenHover: HoverController | null = null;
 
-  override rootServiceFlavour: string = 'affine:page';
+  protected override get embedView() {
+    return undefined;
+  }
+
+  get rootService() {
+    return this.std.getService('affine:page') as EdgelessRootService;
+  }
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -63,18 +67,6 @@ export class AttachmentEdgelessBlockComponent extends toGfxBlockComponent(
     });
 
     return this.renderPageContent();
-  }
-
-  override toZIndex(): string {
-    return `${this.rootService.layer.getZIndex(this.model)}`;
-  }
-
-  protected override get embedView() {
-    return undefined;
-  }
-
-  override get rootService() {
-    return super.rootService as EdgelessRootService;
   }
 }
 

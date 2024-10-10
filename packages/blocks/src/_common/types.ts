@@ -1,5 +1,5 @@
-import type { RefNodeSlots } from '@blocksuite/affine-components/rich-text';
 import type {
+  BrushElementModel,
   ConnectorElementModel,
   DocMode,
   GroupElementModel,
@@ -7,22 +7,16 @@ import type {
 import type { Slot } from '@blocksuite/global/utils';
 import type { Doc } from '@blocksuite/store';
 
-import type { BrushElementModel } from '../surface-block/index.js';
-
 /** Common context interface definition for block models. */
 
-// TODO: remove
-export type CommonSlots = RefNodeSlots;
-
 type EditorSlots = {
-  editorModeSwitched: Slot<DocMode>;
   docUpdated: Slot<{ newDocId: string }>;
 };
 
 export type AbstractEditor = {
   doc: Doc;
   mode: DocMode;
-  readonly slots: CommonSlots & EditorSlots;
+  readonly slots: EditorSlots;
 } & HTMLElement;
 
 export type Connectable = Exclude<

@@ -1,4 +1,8 @@
 import type {
+  SurfaceBlockComponent,
+  SurfaceBlockModel,
+} from '@blocksuite/affine-block-surface';
+import type {
   AttachmentBlockProps,
   ImageBlockProps,
   RootBlockModel,
@@ -9,38 +13,45 @@ import type {
   SurfaceSelection,
   UIEventHandler,
 } from '@blocksuite/block-std';
-import type { GfxViewportElement } from '@blocksuite/block-std/gfx';
 import type { IBound, IPoint, IVec } from '@blocksuite/global/utils';
 import type { BlockModel } from '@blocksuite/store';
 
+import { CommonUtils } from '@blocksuite/affine-block-surface';
 import { focusTextModel } from '@blocksuite/affine-components/rich-text';
 import { toast } from '@blocksuite/affine-components/toast';
 import { NoteDisplayMode } from '@blocksuite/affine-model';
-import { humanFileSize } from '@blocksuite/affine-shared/utils';
+import {
+  EditPropsStore,
+  FontLoaderService,
+  TelemetryProvider,
+} from '@blocksuite/affine-shared/services';
+import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import {
   handleNativeRangeAtPoint,
+  humanFileSize,
   isTouchPadPinchEvent,
   requestConnectedFrame,
   requestThrottledConnectedFrame,
 } from '@blocksuite/affine-shared/utils';
 import { BlockComponent } from '@blocksuite/block-std';
+import {
+  GfxBlockElementModel,
+  type GfxViewportElement,
+} from '@blocksuite/block-std/gfx';
 import { IS_WINDOWS } from '@blocksuite/global/env';
 import {
+  assertExists,
   Bound,
   Point,
-  Vec,
-  assertExists,
   serializeXYWH,
   throttle,
+  Vec,
 } from '@blocksuite/global/utils';
 import { css, html, nothing } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { Viewport } from '../../_common/utils/index.js';
-import type { SurfaceBlockComponent } from '../../surface-block/surface-block.js';
-import type { SurfaceBlockModel } from '../../surface-block/surface-model.js';
-import type { FontLoader } from '../font-loader/font-loader.js';
 import type { EdgelessRootBlockWidgetName } from '../types.js';
 import type { EdgelessSelectedRect } from './components/rects/edgeless-selected-rect.js';
 import type { EdgelessRootService } from './edgeless-root-service.js';
@@ -53,14 +64,7 @@ import {
   setAttachmentUploaded,
   setAttachmentUploading,
 } from '../../attachment-block/utils.js';
-import { normalizeWheelDeltaY } from '../../surface-block/index.js';
-import '../../surface-block/surface-block.js';
 import { EdgelessClipboardController } from './clipboard/clipboard.js';
-import './components/note-slicer/index.js';
-import './components/presentation/edgeless-navigator-black-background.js';
-import './components/rects/edgeless-dragging-area-rect.js';
-import './components/rects/edgeless-selected-rect.js';
-import './components/toolbar/edgeless-toolbar.js';
 import { EdgelessToolbar } from './components/toolbar/edgeless-toolbar.js';
 import { calcBoundByOrigin, readImageSize } from './components/utils.js';
 import { EdgelessPageKeyboardManager } from './edgeless-keyboard.js';
@@ -90,32 +94,13 @@ import {
 import { getBackgroundGrid, isCanvasElement } from './utils/query.js';
 import { mountShapeTextEditor } from './utils/text.js';
 
-@customElement('affine-edgeless-root')
+const { normalizeWheelDeltaY } = CommonUtils;
+
 export class EdgelessRootBlockComponent extends BlockComponent<
   RootBlockModel,
   EdgelessRootService,
   EdgelessRootBlockWidgetName
 > {
-  private _refreshLayerViewport = requestThrottledConnectedFrame(() => {
-    const { zoom, translateX, translateY } = this.service.viewport;
-    const { gap } = getBackgroundGrid(zoom, true);
-
-    if (this.backgroundElm) {
-      this.backgroundElm.style.setProperty(
-        'background-position',
-        `${translateX}px ${translateY}px`
-      );
-      this.backgroundElm.style.setProperty(
-        'background-size',
-        `${gap}px ${gap}px`
-      );
-    }
-  }, this);
-
-  private _resizeObserver: ResizeObserver | null = null;
-
-  private _viewportElement: HTMLElement | null = null;
-
   static override styles = css`
     affine-edgeless-root {
       -webkit-user-select: none;
@@ -143,12 +128,36 @@ export class EdgelessRootBlockComponent extends BlockComponent<
       );
     }
 
+    .edgeless-container {
+      color: var(--affine-text-primary-color);
+    }
+
     @media print {
       .selected {
         background-color: transparent !important;
       }
     }
   `;
+
+  private _refreshLayerViewport = requestThrottledConnectedFrame(() => {
+    const { zoom, translateX, translateY } = this.service.viewport;
+    const { gap } = getBackgroundGrid(zoom, true);
+
+    if (this.backgroundElm) {
+      this.backgroundElm.style.setProperty(
+        'background-position',
+        `${translateX}px ${translateY}px`
+      );
+      this.backgroundElm.style.setProperty(
+        'background-size',
+        `${gap}px ${gap}px`
+      );
+    }
+  }, this);
+
+  private _resizeObserver: ResizeObserver | null = null;
+
+  private _viewportElement: HTMLElement | null = null;
 
   clipboardController = new EdgelessClipboardController(this);
 
@@ -166,11 +175,58 @@ export class EdgelessRootBlockComponent extends BlockComponent<
    */
   disableComponents = false;
 
-  fontLoader!: FontLoader;
-
   keyboardManager: EdgelessPageKeyboardManager | null = null;
 
   mouseRoot!: HTMLElement;
+
+  get dispatcher() {
+    return this.service?.uiEventDispatcher;
+  }
+
+  get slots() {
+    return this.service.slots;
+  }
+
+  get surfaceBlockModel() {
+    return this.model.children.find(
+      child => child.flavour === 'affine:surface'
+    ) as SurfaceBlockModel;
+  }
+
+  get tools() {
+    return this.service.tool;
+  }
+
+  get viewport(): Viewport {
+    const {
+      scrollLeft,
+      scrollTop,
+      scrollWidth,
+      scrollHeight,
+      clientWidth,
+      clientHeight,
+    } = this.viewportElement;
+    const { top, left } = this.viewportElement.getBoundingClientRect();
+    return {
+      top,
+      left,
+      scrollLeft,
+      scrollTop,
+      scrollWidth,
+      scrollHeight,
+      clientWidth,
+      clientHeight,
+    };
+  }
+
+  get viewportElement(): HTMLElement {
+    if (this._viewportElement) return this._viewportElement;
+    this._viewportElement = this.host.closest(
+      '.affine-edgeless-viewport'
+    ) as HTMLElement | null;
+    assertExists(this._viewportElement);
+    return this._viewportElement;
+  }
 
   private _handleToolbarFlag() {
     const createToolbar = () => {
@@ -186,11 +242,9 @@ export class EdgelessRootBlockComponent extends BlockComponent<
   }
 
   private _initFontLoader() {
-    const fontLoader = this.service?.fontLoader;
-    assertExists(fontLoader);
-
-    fontLoader.ready
-      .then(() => {
+    this.std
+      .get(FontLoaderService)
+      .ready.then(() => {
         this.surface.refresh();
       })
       .catch(console.error);
@@ -327,7 +381,7 @@ export class EdgelessRootBlockComponent extends BlockComponent<
     const { disposables, slots } = this;
 
     this.disposables.add(
-      this.service.themeObserver.mode$.subscribe(() => this.surface.refresh())
+      ThemeObserver.instance.mode$.subscribe(() => this.surface.refresh())
     );
 
     disposables.add(this.service.selection);
@@ -386,13 +440,11 @@ export class EdgelessRootBlockComponent extends BlockComponent<
   }
 
   private _initViewport() {
-    const { service } = this;
-
-    service.viewport.setContainer(this);
+    const { service, std } = this;
 
     const run = () => {
       const viewport =
-        service.editPropsStore.getStorage('viewport') ??
+        std.get(EditPropsStore).getStorage('viewport') ??
         service.getFitToScreenData();
       if ('xywh' in viewport) {
         const bound = Bound.deserialize(viewport.xywh);
@@ -406,7 +458,7 @@ export class EdgelessRootBlockComponent extends BlockComponent<
     run();
 
     this._disposables.add(() => {
-      service.editPropsStore.setStorage('viewport', {
+      std.get(EditPropsStore).setStorage('viewport', {
         centerX: service.viewport.centerX,
         centerY: service.viewport.centerY,
         zoom: service.viewport.zoom,
@@ -458,6 +510,10 @@ export class EdgelessRootBlockComponent extends BlockComponent<
     if (!files.length) return [];
 
     const attachmentService = this.std.getService('affine:attachment');
+    if (!attachmentService) {
+      console.error('Attachment service not found');
+      return [];
+    }
     const maxFileSize = attachmentService.maxFileSize;
     const isSizeExceeded = files.some(file => file.size > maxFileSize);
     if (isSizeExceeded) {
@@ -550,6 +606,10 @@ export class EdgelessRootBlockComponent extends BlockComponent<
     if (!imageFiles.length) return [];
 
     const imageService = this.std.getService('affine:image');
+    if (!imageService) {
+      console.error('Image service not found');
+      return [];
+    }
     const maxFileSize = imageService.maxFileSize;
     const isSizeExceeded = imageFiles.some(file => file.size > maxFileSize);
     if (isSizeExceeded) {
@@ -707,7 +767,7 @@ export class EdgelessRootBlockComponent extends BlockComponent<
       noteIndex
     );
 
-    this.service.telemetryService?.track('CanvasElementAdded', {
+    this.std.getOptional(TelemetryProvider)?.track('CanvasElementAdded', {
       control: 'canvas:draw',
       page: 'whiteboard editor',
       module: 'toolbar',
@@ -773,7 +833,6 @@ export class EdgelessRootBlockComponent extends BlockComponent<
       return;
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.mouseRoot = this.parentElement!;
     this._initTools();
 
@@ -853,15 +912,14 @@ export class EdgelessRootBlockComponent extends BlockComponent<
           .maxConcurrentRenders=${6}
           .viewport=${this.service.viewport}
           .getModelsInViewport=${() => {
-            const blocks = this.service.layer.blocksGrid.search(
+            const blocks = this.service.gfx.grid.search(
               this.service.viewport.viewportBounds,
               undefined,
-              true
+              {
+                useSet: true,
+                filter: model => model instanceof GfxBlockElementModel,
+              }
             );
-
-            this.service.layer.framesGrid
-              .search(this.service.viewport.viewportBounds, undefined, true)
-              .forEach(frame => blocks.add(frame));
 
             return blocks;
           }}
@@ -926,55 +984,6 @@ export class EdgelessRootBlockComponent extends BlockComponent<
         })
         .catch(console.error);
     });
-  }
-
-  get dispatcher() {
-    return this.service?.uiEventDispatcher;
-  }
-
-  get slots() {
-    return this.service.slots;
-  }
-
-  get surfaceBlockModel() {
-    return this.model.children.find(
-      child => child.flavour === 'affine:surface'
-    ) as SurfaceBlockModel;
-  }
-
-  get tools() {
-    return this.service.tool;
-  }
-
-  get viewport(): Viewport {
-    const {
-      scrollLeft,
-      scrollTop,
-      scrollWidth,
-      scrollHeight,
-      clientWidth,
-      clientHeight,
-    } = this.viewportElement;
-    const { top, left } = this.viewportElement.getBoundingClientRect();
-    return {
-      top,
-      left,
-      scrollLeft,
-      scrollTop,
-      scrollWidth,
-      scrollHeight,
-      clientWidth,
-      clientHeight,
-    };
-  }
-
-  get viewportElement(): HTMLElement {
-    if (this._viewportElement) return this._viewportElement;
-    this._viewportElement = this.host.closest(
-      '.affine-edgeless-viewport'
-    ) as HTMLElement | null;
-    assertExists(this._viewportElement);
-    return this._viewportElement;
   }
 
   @state()

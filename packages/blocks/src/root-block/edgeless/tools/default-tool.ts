@@ -1,17 +1,23 @@
 import type {
   EdgelessTextBlockModel,
   FrameBlockModel,
+  MindmapNode,
   NoteBlockModel,
 } from '@blocksuite/affine-model';
 import type { PointerEventState } from '@blocksuite/block-std';
 import type { PointTestOptions } from '@blocksuite/block-std/gfx';
 import type { IVec } from '@blocksuite/global/utils';
 
+import { ConnectorUtils, MindmapUtils } from '@blocksuite/affine-block-surface';
 import { focusTextModel } from '@blocksuite/affine-components/rich-text';
 import {
   ConnectorElementModel,
   GroupElementModel,
+  MindmapElementModel,
+  ShapeElementModel,
+  TextElementModel,
 } from '@blocksuite/affine-model';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
 import {
   clamp,
   handleNativeRangeAtPoint,
@@ -20,29 +26,14 @@ import {
 import {
   Bound,
   DisposableGroup,
-  Vec,
   intersects,
   noop,
+  Vec,
 } from '@blocksuite/global/utils';
 
-import type { MindmapNode } from '../../../surface-block/element-model/utils/mindmap/layout.js';
 import type { EdgelessTool } from '../types.js';
 
 import { isSelectSingleMindMap } from '../../../_common/edgeless/mindmap/index.js';
-import { buildPath } from '../../../_common/utils/index.js';
-import { SurfaceGroupLikeModel } from '../../../surface-block/element-model/base.js';
-import {
-  MindmapElementModel,
-  ShapeElementModel,
-  TextElementModel,
-} from '../../../surface-block/element-model/index.js';
-import { isConnectorWithLabel } from '../../../surface-block/element-model/utils/connector.js';
-import {
-  hideTargetConnector,
-  moveSubtree,
-  showMergeIndicator,
-} from '../../../surface-block/element-model/utils/mindmap/utils.js';
-import { isConnectorAndBindingsAllSelected } from '../../../surface-block/managers/connector-manager.js';
 import { edgelessElementsBound } from '../utils/bound-utils.js';
 import { prepareCloneData } from '../utils/clone-utils.js';
 import { calPanDelta } from '../utils/panning-utils.js';
@@ -60,6 +51,7 @@ import {
   mountShapeTextEditor,
   mountTextElementEditor,
 } from '../utils/text.js';
+import { getAllDescendantElements, getTopElements } from '../utils/tree.js';
 import { EdgelessToolController } from './edgeless-tool.js';
 
 export enum DefaultModeDragType {
@@ -122,14 +114,6 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
 
   private _disposables: DisposableGroup | null = null;
 
-  private _dragLastModelCoord: IVec = [0, 0];
-
-  private _dragLastPos: IVec = [0, 0];
-
-  private _dragStartModelCoord: IVec = [0, 0];
-
-  private _dragStartPos: IVec = [0, 0];
-
   private _dragging = false;
 
   private _draggingSingleMindmap: null | {
@@ -140,11 +124,21 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     detach?: boolean;
   } = null;
 
+  private _dragLastModelCoord: IVec = [0, 0];
+
+  private _dragLastPos: IVec = [0, 0];
+
+  private _dragStartModelCoord: IVec = [0, 0];
+
+  private _dragStartPos: IVec = [0, 0];
+
+  private _hoveredFrame: FrameBlockModel | null = null;
+
   private _hoveredMindMap: null | {
     mindmap: MindmapElementModel;
     node: MindmapNode;
     mergeInfo?: Exclude<
-      ReturnType<typeof showMergeIndicator>,
+      ReturnType<typeof MindmapUtils.showMergeIndicator>,
       undefined
     >['mergeInfo'];
   } = null;
@@ -226,7 +220,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     const h = Math.abs(startY - curY);
     const bound = new Bound(x, y, w, h);
 
-    const elements = service.pickElementsByBound(bound);
+    const elements = getTopElements(service.gfx.getElementsByBound(bound));
 
     const set = new Set(
       tools.shiftKey ? [...elements, ...selection.selectedElements] : elements
@@ -251,6 +245,36 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
   readonly tool = {
     type: 'default',
   } as DefaultTool;
+
+  override get draggingArea() {
+    if (this.dragType === DefaultModeDragType.Selecting) {
+      const [startX, startY] = this._service.viewport.toViewCoord(
+        this._dragStartModelCoord[0],
+        this._dragStartModelCoord[1]
+      );
+      const [endX, endY] = this._service.viewport.toViewCoord(
+        this._dragLastModelCoord[0],
+        this._dragLastModelCoord[1]
+      );
+      return {
+        start: new DOMPoint(startX, startY),
+        end: new DOMPoint(endX, endY),
+      };
+    }
+    return null;
+  }
+
+  get edgelessSelectionManager() {
+    return this._service.selection;
+  }
+
+  get readonly() {
+    return this._edgeless.doc.readonly;
+  }
+
+  get zoom() {
+    return this._service.viewport.zoom;
+  }
 
   private _addEmptyParagraphBlock(
     block: NoteBlockModel | EdgelessTextBlockModel
@@ -309,7 +333,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
 
         if (
           isCanvasElement(selected) &&
-          isConnectorWithLabel(selected) &&
+          ConnectorUtils.isConnectorWithLabel(selected) &&
           (selected as ConnectorElementModel).labelIncludesPoint(
             this._service.viewport.toModelCoord(x, y)
           )
@@ -335,7 +359,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
 
         if (
           isCanvasElement(selected) &&
-          isConnectorWithLabel(selected) &&
+          ConnectorUtils.isConnectorWithLabel(selected) &&
           (selected as ConnectorElementModel).labelIncludesPoint(
             this._service.viewport.toModelCoord(x, y)
           )
@@ -375,7 +399,10 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
   private _isDraggable(element: BlockSuite.EdgelessModel) {
     return !(
       element instanceof ConnectorElementModel &&
-      !isConnectorAndBindingsAllSelected(element, this._toBeMoved)
+      !ConnectorUtils.isConnectorAndBindingsAllSelected(
+        element,
+        this._toBeMoved
+      )
     );
   }
 
@@ -445,8 +472,8 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
       this._clearMindMapHoverState.forEach(fn => fn());
       this._clearMindMapHoverState = [];
 
-      const hoveredMindmap = this._service
-        .pickElement(x, y, {
+      const hoveredMindmap = this._service.gfx
+        .getElementByPoint(x, y, {
           all: true,
           responsePadding: [25, 60],
         })
@@ -466,9 +493,12 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
         element.opacity = 0.8;
 
         const { clear, mergeInfo } =
-          showMergeIndicator(mindmap, node, subtree, [x, y]) ?? {};
+          MindmapUtils.showMergeIndicator(mindmap, node, subtree, [x, y]) ?? {};
         clear && this._clearMindMapHoverState.push(clear);
-        const clearHide = hideTargetConnector(currentMindmap, subtree);
+        const clearHide = MindmapUtils.hideTargetConnector(
+          currentMindmap,
+          subtree
+        );
         clearHide && this._clearMindMapHoverState.push(clearHide);
 
         const layoutType = mergeInfo?.layoutType;
@@ -492,7 +522,10 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
           ) &&
           currentMindmap.tree.id !== currentNode.id
         ) {
-          const clearHide = hideTargetConnector(currentMindmap, subtree);
+          const clearHide = MindmapUtils.hideTargetConnector(
+            currentMindmap,
+            subtree
+          );
           clearHide && this._clearMindMapHoverState.push(clearHide);
           this._draggingSingleMindmap.detach = true;
         } else {
@@ -504,10 +537,17 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
       }
     }
 
-    const frame = this._service.frame.selectFrame(this._toBeMoved);
-    frame
-      ? this._surface.overlays.frame.highlight(frame as FrameBlockModel)
-      : this._surface.overlays.frame.clear();
+    this._hoveredFrame = this._edgeless.service.frame.getFrameFromPoint(
+      this._service.viewport.toModelCoord(
+        this._dragLastPos[0],
+        this._dragLastPos[1]
+      ),
+      this._toBeMoved.filter(ele => isFrameBlock(ele))
+    );
+
+    this._hoveredFrame
+      ? this._service.frameOverlay.highlight(this._hoveredFrame)
+      : this._service.frameOverlay.clear();
   }
 
   private _moveLabel(delta: IVec) {
@@ -534,7 +574,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     const group = service.pickElementInGroup(modelPos[0], modelPos[1], options);
 
     if (group instanceof MindmapElementModel) {
-      const picked = service.pickElement(modelPos[0], modelPos[1], {
+      const picked = service.gfx.getElementByPoint(modelPos[0], modelPos[1], {
         ...((options ?? {}) as PointTestOptions),
         all: true,
       });
@@ -575,14 +615,19 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     );
 
     if (
-      this._toBeMoved.every(
-        ele => !(ele.group instanceof MindmapElementModel)
-      ) ||
+      (this._toBeMoved.length &&
+        this._toBeMoved.every(
+          ele => !(ele.group instanceof MindmapElementModel)
+        )) ||
       (isSelectSingleMindMap(this._toBeMoved) &&
         this._toBeMoved[0].id ===
           (this._toBeMoved[0].group as MindmapElementModel).tree.id)
     ) {
-      this._alignBound = this._service.snap.setupAlignables(this._toBeMoved);
+      const mindmap = this._toBeMoved[0].group as MindmapElementModel;
+
+      this._alignBound = this._service.snap.setupAlignables(this._toBeMoved, [
+        ...(mindmap?.childElements || []),
+      ]);
     }
 
     this._clearDisposable();
@@ -701,10 +746,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
             if (selected.children.length === 0) {
               this._addEmptyParagraphBlock(selected);
             } else {
-              const block = this._edgeless.host.view.viewFromPath(
-                'block',
-                buildPath(selected)
-              );
+              const block = this._edgeless.host.view.getBlock(selected.id);
               if (block) {
                 const rect = block
                   .querySelector('.affine-block-children-container')!
@@ -783,13 +825,15 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
       } else {
         addText(this._edgeless, e);
       }
-      this._service.telemetryService?.track('CanvasElementAdded', {
-        control: 'canvas:dbclick',
-        page: 'whiteboard editor',
-        module: 'toolbar',
-        segment: 'toolbar',
-        type: 'text',
-      });
+      this._edgeless.std
+        .getOptional(TelemetryProvider)
+        ?.track('CanvasElementAdded', {
+          control: 'canvas:dbclick',
+          page: 'whiteboard editor',
+          module: 'toolbar',
+          segment: 'toolbar',
+          type: 'text',
+        });
       return;
     } else {
       const [x, y] = this._service.viewport.toModelCoord(e.x, e.y);
@@ -837,7 +881,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
         const { node: currentNode, mindmap: currentMindmap } =
           this._draggingSingleMindmap;
 
-        moveSubtree(
+        MindmapUtils.moveMindMapSubtree(
           currentMindmap,
           currentNode!,
           mindmap,
@@ -847,10 +891,13 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
         );
       } else if (this._draggingSingleMindmap.detach) {
         const { mindmap } = this._draggingSingleMindmap;
-        const subtree = mindmap.detach(this._draggingSingleMindmap.node);
+        const subtree = MindmapUtils.detachMindmap(
+          mindmap,
+          this._draggingSingleMindmap.node
+        );
 
         if (subtree) {
-          MindmapElementModel.createFromTree(
+          MindmapUtils.createFromTree(
             subtree,
             mindmap.style,
             mindmap.layoutType,
@@ -879,20 +926,38 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
       });
     }
 
+    {
+      const frameManager = this._service.frame;
+      const toBeMovedTopElements = getTopElements(
+        this._toBeMoved.map(el =>
+          el.group instanceof MindmapElementModel ? el.group : el
+        )
+      );
+      if (this._hoveredFrame) {
+        frameManager.addElementsToFrame(
+          this._hoveredFrame,
+          toBeMovedTopElements
+        );
+      } else {
+        // only apply to root nodes of trees
+        toBeMovedTopElements.map(element =>
+          frameManager.removeParentFrame(element)
+        );
+      }
+    }
+
     if (this._lock) {
       this._doc.captureSync();
       this._lock = false;
     }
 
-    if (this.edgelessSelectionManager.editing) {
-      return;
-    }
-    const { surface } = this._edgeless;
+    if (this.edgelessSelectionManager.editing) return;
+
     this._dragStartPos = [0, 0];
     this._dragLastPos = [0, 0];
     this._selectedBounds = [];
     this._service.snap.cleanupAlignables();
-    surface.overlays.frame.clear();
+    this._service.frameOverlay.clear();
     this._toBeMoved = [];
     this._selectedConnector = null;
     this._selectedConnectorLabelBounds = null;
@@ -957,6 +1022,7 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   async onContainerDragStart(e: PointerEventState) {
     if (this.edgelessSelectionManager.editing) return;
     // Determine the drag type based on the current state and event
@@ -965,17 +1031,14 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     const elements = this.edgelessSelectionManager.selectedElements;
     const toBeMoved = new Set(elements);
     elements.forEach(element => {
-      if (isFrameBlock(element)) {
-        this._service.frame
-          .getElementsInFrame(element)
-          .forEach(ele => toBeMoved.add(ele));
-      } else if (
-        element.group instanceof MindmapElementModel &&
-        elements.length > 1
-      ) {
-        element.group.descendants().forEach(ele => toBeMoved.add(ele));
-      } else if (element instanceof SurfaceGroupLikeModel) {
-        element.descendants().forEach(ele => toBeMoved.add(ele));
+      if (element.group instanceof MindmapElementModel && elements.length > 1) {
+        getAllDescendantElements(element.group).forEach(ele =>
+          toBeMoved.add(ele)
+        );
+      } else {
+        getAllDescendantElements(element).forEach(ele => {
+          toBeMoved.add(ele);
+        });
       }
     });
     this._toBeMoved = Array.from(toBeMoved);
@@ -1018,8 +1081,20 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
     }
   }
 
-  onContainerMouseMove() {
-    noop();
+  onContainerMouseMove(e: PointerEventState) {
+    const hovered = this._pick(e.x, e.y, {
+      hitThreshold: 10,
+    });
+    if (
+      isFrameBlock(hovered) &&
+      hovered.externalBound?.isPointInBound(
+        this._service.viewport.toModelCoord(e.x, e.y)
+      )
+    ) {
+      this._service.frameOverlay.highlight(hovered);
+    } else {
+      this._service.frameOverlay.clear();
+    }
   }
 
   onContainerMouseOut(_: PointerEventState) {
@@ -1057,36 +1132,6 @@ export class DefaultToolController extends EdgelessToolController<DefaultTool> {
         this._moveSelectionDragStartTemp = [...this._dragStartPos];
       }
     }
-  }
-
-  override get draggingArea() {
-    if (this.dragType === DefaultModeDragType.Selecting) {
-      const [startX, startY] = this._service.viewport.toViewCoord(
-        this._dragStartModelCoord[0],
-        this._dragStartModelCoord[1]
-      );
-      const [endX, endY] = this._service.viewport.toViewCoord(
-        this._dragLastModelCoord[0],
-        this._dragLastModelCoord[1]
-      );
-      return {
-        start: new DOMPoint(startX, startY),
-        end: new DOMPoint(endX, endY),
-      };
-    }
-    return null;
-  }
-
-  get edgelessSelectionManager() {
-    return this._service.selection;
-  }
-
-  get readonly() {
-    return this._edgeless.doc.readonly;
-  }
-
-  get zoom() {
-    return this._service.viewport.zoom;
   }
 }
 

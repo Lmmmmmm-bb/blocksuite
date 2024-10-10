@@ -1,10 +1,25 @@
 import type { BlockCollection } from '@blocksuite/store';
 
-import { DocMode } from '@blocksuite/blocks';
+import { effects as blocksEffects } from '@blocksuite/blocks/effects';
+
+import { effects } from '../../effects.js';
+
+blocksEffects();
+effects();
+
+import {
+  CommunityCanvasTextFonts,
+  type DocMode,
+  FontConfigExtension,
+} from '@blocksuite/blocks';
 import { AffineSchemas } from '@blocksuite/blocks/schemas';
 import { assertExists } from '@blocksuite/global/utils';
-import { DocCollection, Text } from '@blocksuite/store';
-import { IdGeneratorType, Schema } from '@blocksuite/store';
+import {
+  DocCollection,
+  IdGeneratorType,
+  Schema,
+  Text,
+} from '@blocksuite/store';
 
 import { AffineEditorContainer } from '../../index.js';
 
@@ -42,10 +57,7 @@ function initCollection(collection: DocCollection) {
   doc.resetHistory();
 }
 
-async function createEditor(
-  collection: DocCollection,
-  mode: DocMode = DocMode.Page
-) {
+async function createEditor(collection: DocCollection, mode: DocMode = 'page') {
   const app = document.createElement('div');
   const blockCollection = collection.docs.values().next().value as
     | BlockCollection
@@ -55,6 +67,12 @@ async function createEditor(
   const editor = new AffineEditorContainer();
   editor.doc = doc;
   editor.mode = mode;
+  editor.pageSpecs = editor.pageSpecs.concat([
+    FontConfigExtension(CommunityCanvasTextFonts),
+  ]);
+  editor.edgelessSpecs = editor.edgelessSpecs.concat([
+    FontConfigExtension(CommunityCanvasTextFonts),
+  ]);
   app.append(editor);
 
   window.editor = editor;
@@ -68,7 +86,7 @@ async function createEditor(
   return app;
 }
 
-export async function setupEditor(mode: DocMode = DocMode.Page) {
+export async function setupEditor(mode: DocMode = 'page') {
   const collection = new DocCollection(createCollectionOptions());
   collection.meta.initialize();
 

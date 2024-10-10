@@ -1,38 +1,15 @@
 import type { TextSelection } from '@blocksuite/block-std';
 import type { RichText } from '@blocksuite/blocks';
 
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { DocCollection } from '@blocksuite/store';
 import { css, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { property, query } from 'lit/decorators.js';
 
 import type { Comment, CommentManager } from './comment-manager.js';
 
-@customElement('comment-input')
 export class CommentInput extends WithDisposable(ShadowlessElement) {
-  private _cancel = () => {
-    this.remove();
-  };
-
-  private _submit = (textSelection: TextSelection) => {
-    const deltas = this._editor.inlineEditor?.yTextDeltas;
-    if (!deltas) {
-      this.remove();
-      return;
-    }
-
-    const yText = new DocCollection.Y.Text();
-    yText.applyDelta(deltas);
-    const comment = this.manager.addComment(textSelection, {
-      author: 'Anonymous',
-      text: yText,
-    });
-
-    this.onSubmit?.(comment);
-
-    this.remove();
-  };
-
   static override styles = css`
     .comment-input-container {
       padding: 16px;
@@ -64,6 +41,33 @@ export class CommentInput extends WithDisposable(ShadowlessElement) {
       margin-top: 8px;
     }
   `;
+
+  private _cancel = () => {
+    this.remove();
+  };
+
+  private _submit = (textSelection: TextSelection) => {
+    const deltas = this._editor.inlineEditor?.yTextDeltas;
+    if (!deltas) {
+      this.remove();
+      return;
+    }
+
+    const yText = new DocCollection.Y.Text();
+    yText.applyDelta(deltas);
+    const comment = this.manager.addComment(textSelection, {
+      author: 'Anonymous',
+      text: yText,
+    });
+
+    this.onSubmit?.(comment);
+
+    this.remove();
+  };
+
+  get host() {
+    return this.manager.host;
+  }
 
   override render() {
     const textSelection = this.host.selection.find('text');
@@ -102,10 +106,6 @@ export class CommentInput extends WithDisposable(ShadowlessElement) {
         <button @click=${this._cancel} class="comment-cancel">Cancel</button>
       </div>
     </div>`;
-  }
-
-  get host() {
-    return this.manager.host;
   }
 
   @query('rich-text')

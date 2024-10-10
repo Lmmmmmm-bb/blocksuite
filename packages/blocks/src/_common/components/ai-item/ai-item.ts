@@ -1,20 +1,21 @@
 import { ArrowRightIcon, EnterIcon } from '@blocksuite/affine-components/icons';
-import { EditorHost } from '@blocksuite/block-std';
-import { WithDisposable } from '@blocksuite/block-std';
-import { PropTypes, requiredProperties } from '@blocksuite/block-std';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import {
+  EditorHost,
+  PropTypes,
+  requiredProperties,
+} from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing } from 'lit';
+import { property, query } from 'lit/decorators.js';
 
 import type { AIItemConfig } from './types.js';
 
-import './ai-sub-item-list.js';
 import { menuItemStyles } from './styles.js';
 
 @requiredProperties({
   host: PropTypes.instanceOf(EditorHost),
   item: PropTypes.object,
 })
-@customElement('ai-item')
 export class AIItem extends WithDisposable(LitElement) {
   static override styles = css`
     ${menuItemStyles}

@@ -1,23 +1,22 @@
 import type { PointerEventState } from '@blocksuite/block-std';
-import type { IVec } from '@blocksuite/global/utils';
-import type { IPoint } from '@blocksuite/global/utils';
+import type { IPoint, IVec } from '@blocksuite/global/utils';
 
+import { CommonUtils, Overlay } from '@blocksuite/affine-block-surface';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import {
   Bound,
-  Vec,
   getBoundFromPoints,
   getPolygonPathFromPoints,
   linePolygonIntersects,
   noop,
   pointInPolygon,
   rotatePoints,
+  Vec,
 } from '@blocksuite/global/utils';
 
 import type { EdgelessTool } from '../types.js';
 
 import { LassoMode } from '../../../_common/types.js';
-import { Overlay, getSvgPathFromStroke } from '../../../surface-block/index.js';
 import { EdgelessToolController } from './edgeless-tool.js';
 
 class LassoOverlay extends Overlay {
@@ -72,7 +71,7 @@ export class LassoToolController extends EdgelessToolController<LassoTool> {
   private _loop = () => {
     const path =
       this.tool.mode === LassoMode.FreeHand
-        ? getSvgPathFromStroke(this._lassoPoints)
+        ? CommonUtils.getSvgPathFromStroke(this._lassoPoints)
         : getPolygonPathFromPoints(this._lassoPoints);
 
     this._overlay.d = path;
@@ -88,6 +87,14 @@ export class LassoToolController extends EdgelessToolController<LassoTool> {
     type: 'lasso',
   } as LassoTool; // to finalize the selection
 
+  get isSelecting() {
+    return this._isSelecting;
+  }
+
+  get selection() {
+    return this._edgeless.service.selection;
+  }
+
   private _clearLastSelection() {
     if (this.selection.empty) {
       this.selection.clearLast();
@@ -96,8 +103,8 @@ export class LassoToolController extends EdgelessToolController<LassoTool> {
 
   private _getElementsInsideLasso() {
     const lassoBounds = getBoundFromPoints(this._lassoPoints);
-    return this._service
-      .pickElementsByBound(lassoBounds)
+    return this._service.gfx
+      .getElementsByBound(lassoBounds)
       .filter(e =>
         this.isInsideLassoSelection(Bound.deserialize(e.xywh), e.rotate)
       );
@@ -329,14 +336,6 @@ export class LassoToolController extends EdgelessToolController<LassoTool> {
 
   override onPressSpaceBar(): void {
     noop();
-  }
-
-  get isSelecting() {
-    return this._isSelecting;
-  }
-
-  get selection() {
-    return this._edgeless.service.selection;
   }
 }
 

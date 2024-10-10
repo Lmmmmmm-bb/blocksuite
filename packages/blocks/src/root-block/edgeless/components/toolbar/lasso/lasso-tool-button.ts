@@ -3,35 +3,18 @@ import {
   LassoFreeHandIcon,
   LassoPolygonalIcon,
 } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, css, html } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement } from 'lit';
+import { query, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { LassoMode } from '../../../../../_common/types.js';
 import { getTooltipWithShortcut } from '../../utils.js';
 import { QuickToolMixin } from '../mixins/quick-tool.mixin.js';
 
-@customElement('edgeless-lasso-tool-button')
-export class EdgelessDefaultToolButton extends QuickToolMixin(
+export class EdgelessLassoToolButton extends QuickToolMixin(
   WithDisposable(LitElement)
 ) {
-  private _changeTool = () => {
-    const tool = this.edgelessTool;
-    if (tool.type !== 'lasso') {
-      this.setEdgelessTool({ type: 'lasso', mode: this.curMode });
-      return;
-    }
-
-    this._fadeOut();
-    setTimeout(() => {
-      this.curMode === LassoMode.FreeHand
-        ? this.setEdgelessTool({ type: 'lasso', mode: LassoMode.Polygonal })
-        : this.setEdgelessTool({ type: 'lasso', mode: LassoMode.FreeHand });
-      this._fadeIn();
-    }, 100);
-  };
-
   static override styles = css`
     .current-icon {
       transition: 100ms;
@@ -48,6 +31,22 @@ export class EdgelessDefaultToolButton extends QuickToolMixin(
       font-size: 0;
     }
   `;
+
+  private _changeTool = () => {
+    const tool = this.edgelessTool;
+    if (tool.type !== 'lasso') {
+      this.setEdgelessTool({ type: 'lasso', mode: this.curMode });
+      return;
+    }
+
+    this._fadeOut();
+    setTimeout(() => {
+      this.curMode === LassoMode.FreeHand
+        ? this.setEdgelessTool({ type: 'lasso', mode: LassoMode.Polygonal })
+        : this.setEdgelessTool({ type: 'lasso', mode: LassoMode.FreeHand });
+      this._fadeIn();
+    }, 100);
+  };
 
   override type = 'lasso' as const;
 
@@ -111,6 +110,6 @@ export class EdgelessDefaultToolButton extends QuickToolMixin(
 
 declare global {
   interface HTMLElementTagNameMap {
-    'edgeless-lasso-tool-button': EdgelessDefaultToolButton;
+    'edgeless-lasso-tool-button': EdgelessLassoToolButton;
   }
 }

@@ -1,17 +1,21 @@
 import type { IVec } from '@blocksuite/global/utils';
 
-import { WithDisposable } from '@blocksuite/block-std';
-import { Vec } from '@blocksuite/global/utils';
-import { Slot, assertEquals, assertExists } from '@blocksuite/global/utils';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { CommonUtils } from '@blocksuite/affine-block-surface';
+import {
+  assertEquals,
+  assertExists,
+  Slot,
+  Vec,
+  WithDisposable,
+} from '@blocksuite/global/utils';
+import { html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 import type { PieMenuSchema, PieNodeModel } from './base.js';
 import type { AffinePieMenuWidget } from './index.js';
 
-import { toDegree, toRadian } from '../../../surface-block/index.js';
 import { PieNode } from './node.js';
 import { PieManager } from './pie-manager.js';
 import { pieMenuStyles } from './styles.js';
@@ -25,8 +29,11 @@ import {
   isSubmenuNode,
 } from './utils.js';
 
-@customElement('affine-pie-menu')
+const { toDegree, toRadian } = CommonUtils;
+
 export class PieMenu extends WithDisposable(LitElement) {
+  static override styles = pieMenuStyles;
+
   private _handleKeyDown = (ev: KeyboardEvent) => {
     const { key } = ev;
     if (key === 'Escape') {
@@ -85,8 +92,6 @@ export class PieMenu extends WithDisposable(LitElement) {
     }
   };
 
-  static override styles = pieMenuStyles;
-
   abortController = new AbortController();
 
   selectionChain: PieNode[] = [];
@@ -95,6 +100,22 @@ export class PieMenu extends WithDisposable(LitElement) {
     pointerAngleUpdated: new Slot<number | null>(),
     requestNodeUpdate: new Slot(),
   };
+
+  get activeNode() {
+    const node = this.selectionChain[this.selectionChain.length - 1];
+    assertExists(node, 'Required atLeast 1 node active');
+    return node;
+  }
+
+  get hoveredNode() {
+    return this._hoveredNode;
+  }
+
+  get rootNode() {
+    const node = this.selectionChain[0];
+    assertExists(node, 'No root node');
+    return node;
+  }
 
   private _createNodeTree(nodeSchema: PieNodeModel): PieNode {
     const node = new PieNode();
@@ -261,22 +282,6 @@ export class PieMenu extends WithDisposable(LitElement) {
         this.openSubmenu(node);
       }, timeoutOverride ?? SUBMENU_OPEN_TIMEOUT);
     }
-  }
-
-  get activeNode() {
-    const node = this.selectionChain[this.selectionChain.length - 1];
-    assertExists(node, 'Required atLeast 1 node active');
-    return node;
-  }
-
-  get hoveredNode() {
-    return this._hoveredNode;
-  }
-
-  get rootNode() {
-    const node = this.selectionChain[0];
-    assertExists(node, 'No root node');
-    return node;
   }
 
   @property({ attribute: false })

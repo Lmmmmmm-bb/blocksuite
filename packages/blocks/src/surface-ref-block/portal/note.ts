@@ -1,5 +1,5 @@
+import type { CanvasRenderer } from '@blocksuite/affine-block-surface';
 import type { NoteBlockModel } from '@blocksuite/affine-model';
-import type { Query } from '@blocksuite/store';
 
 import {
   DEFAULT_NOTE_BACKGROUND_COLOR,
@@ -7,28 +7,25 @@ import {
   NoteShadow,
 } from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
+import { SpecProvider } from '@blocksuite/affine-shared/utils';
 import {
   BlockStdScope,
   type EditorHost,
   RANGE_QUERY_EXCLUDE_ATTR,
 } from '@blocksuite/block-std';
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
-import { deserializeXYWH } from '@blocksuite/global/utils';
-import { type BlockModel, BlockViewType } from '@blocksuite/store';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { deserializeXYWH, WithDisposable } from '@blocksuite/global/utils';
+import { type BlockModel, BlockViewType, type Query } from '@blocksuite/store';
 import { css, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { html } from 'lit/static-html.js';
-
-import type { CanvasRenderer } from '../../surface-block/renderer/canvas-renderer.js';
 
 import {
   EDGELESS_BLOCK_CHILD_BORDER_WIDTH,
   EDGELESS_BLOCK_CHILD_PADDING,
 } from '../../_common/consts.js';
-import { SpecProvider } from '../../_specs/utils/spec-provider.js';
 
-@customElement('surface-ref-note-portal')
 export class SurfaceRefNotePortal extends WithDisposable(ShadowlessElement) {
   static override styles = css`
     surface-ref-note-portal {

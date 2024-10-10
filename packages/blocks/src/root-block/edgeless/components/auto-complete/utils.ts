@@ -1,26 +1,26 @@
-import type {
-  Connection,
-  NoteBlockModel,
-  ShapeStyle,
-  ShapeType,
-} from '@blocksuite/affine-model';
 import type { XYWH } from '@blocksuite/global/utils';
 
-import { Bound, assertExists } from '@blocksuite/global/utils';
+import {
+  CommonUtils,
+  type Options,
+  Overlay,
+  type RoughCanvas,
+} from '@blocksuite/affine-block-surface';
+import {
+  type Connection,
+  getShapeRadius,
+  getShapeType,
+  GroupElementModel,
+  type NoteBlockModel,
+  ShapeElementModel,
+  type ShapeName,
+  type ShapeStyle,
+} from '@blocksuite/affine-model';
+import { assertExists, Bound } from '@blocksuite/global/utils';
 import { DocCollection } from '@blocksuite/store';
 
 import type { EdgelessRootBlockComponent } from '../../edgeless-root-block.js';
 
-import {
-  GroupElementModel,
-  ShapeElementModel,
-} from '../../../../surface-block/element-model/index.js';
-import {
-  type Options,
-  Overlay,
-  type RoughCanvas,
-  normalizeDegAngle,
-} from '../../../../surface-block/index.js';
 import { type Shape, ShapeFactory } from '../../utils/tool-overlay.js';
 
 export enum Direction {
@@ -39,7 +39,7 @@ export const DEFAULT_NOTE_OVERLAY_HEIGHT = 110;
 export const DEFAULT_TEXT_WIDTH = 116;
 export const DEFAULT_TEXT_HEIGHT = 24;
 
-export type TARGET_SHAPE_TYPE = ShapeType | 'roundedRect';
+export type TARGET_SHAPE_TYPE = ShapeName;
 export type AUTO_COMPLETE_TARGET_TYPE =
   | TARGET_SHAPE_TYPE
   | 'text'
@@ -192,7 +192,7 @@ export function nextBound(
       angle = 270;
       break;
   }
-  angle = normalizeDegAngle(angle + curShape.rotate);
+  angle = CommonUtils.normalizeDegAngle(angle + curShape.rotate);
 
   if (angle >= 45 && angle <= 135) {
     nextBound = new Bound(x, y + h + MAIN_GAP, w, h);
@@ -314,16 +314,10 @@ export function createShapeElement(
   current: ShapeElementModel | NoteBlockModel,
   targetType: TARGET_SHAPE_TYPE
 ) {
-  const service = edgeless.service!;
-
-  const props = isShape(current)
-    ? current.serialize()
-    : edgeless.service.editPropsStore.getLastProps('shape');
-
+  const service = edgeless.service;
   const id = service.addElement('shape', {
-    ...props,
-    shapeType: targetType === 'roundedRect' ? 'rect' : targetType,
-    radius: targetType === 'roundedRect' ? 0.1 : 0,
+    shapeType: getShapeType(targetType),
+    radius: getShapeRadius(targetType),
     text: new DocCollection.Y.Text(),
   });
   const group = current.group;

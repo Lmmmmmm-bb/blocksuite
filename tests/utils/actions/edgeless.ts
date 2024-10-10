@@ -1,8 +1,8 @@
 import type { NoteBlockModel, NoteDisplayMode } from '@blocks/index.js';
-import type { IPoint, IVec } from '@global/utils/index.js';
+import type { IPoint, IVec } from '@blocksuite/global/utils';
 import type { Locator, Page } from '@playwright/test';
 
-import { assertExists, sleep } from '@global/utils/index.js';
+import { assertExists, sleep } from '@blocksuite/global/utils';
 import { expect } from '@playwright/test';
 
 import type { Bound } from '../asserts.js';
@@ -11,17 +11,18 @@ import '../declare-test-window.js';
 import { clickView } from './click.js';
 import { dragBetweenCoords } from './drag.js';
 import {
-  SHIFT_KEY,
-  SHORT_KEY,
   pressBackspace,
   pressEnter,
   selectAllByKeyboard,
+  SHIFT_KEY,
+  SHORT_KEY,
   type,
 } from './keyboard.js';
 import {
   enterPlaygroundRoom,
   getEditorLocator,
   initEmptyEdgelessState,
+  resetHistory,
   waitNextFrame,
 } from './misc.js';
 
@@ -133,6 +134,12 @@ export async function switchEditorEmbedMode(page: Page) {
 
 export async function enterPresentationMode(page: Page) {
   await page.click('sl-tooltip[content="Enter presentation mode"]');
+  await waitNextFrame(page);
+}
+
+export async function toggleEditorReadonly(page: Page) {
+  await page.click('sl-button:text("Test Operations")');
+  await page.click('sl-menu-item:text("Toggle Readonly")');
   await waitNextFrame(page);
 }
 
@@ -368,14 +375,7 @@ export async function assertEdgelessShapeType(page: Page, type: ShapeName) {
     if (container.edgelessTool.type !== 'shape')
       throw new Error('Expected shape tool');
 
-    const shapeType = container.edgelessTool.shapeType;
-    if (
-      shapeType === 'rect' &&
-      container.service.editPropsStore.getLastProps('shape').radius > 0
-    )
-      return 'roundedRect';
-
-    return container.edgelessTool.shapeType;
+    return container.edgelessTool.shapeName;
   });
 
   expect(type).toEqual(curType);
@@ -1525,11 +1525,17 @@ export async function toViewCoord(page: Page, point: number[]) {
 export async function dragBetweenViewCoords(
   page: Page,
   start: number[],
-  end: number[]
+  end: number[],
+  options?: Parameters<typeof dragBetweenCoords>[3]
 ) {
   const [startX, startY] = await toViewCoord(page, start);
   const [endX, endY] = await toViewCoord(page, end);
-  await dragBetweenCoords(page, { x: startX, y: startY }, { x: endX, y: endY });
+  await dragBetweenCoords(
+    page,
+    { x: startX, y: startY },
+    { x: endX, y: endY },
+    options
+  );
 }
 
 export async function toModelCoord(page: Page, point: number[]) {
@@ -1558,6 +1564,14 @@ export async function getConnectorPath(page: Page, index = 0): Promise<IVec[]> {
     },
     [index]
   );
+}
+
+export async function getSelectedBoundCount(page: Page) {
+  return page.evaluate(() => {
+    const container = document.querySelector('affine-edgeless-root');
+    if (!container) throw new Error('container not found');
+    return container.service.selection.selectedElements.length;
+  });
 }
 
 export async function getSelectedBound(
@@ -1687,8 +1701,10 @@ export async function getSortedIdsInViewport(page: Page) {
     const container = document.querySelector('affine-edgeless-root');
     if (!container) throw new Error('container not found');
     const { service } = container;
-    return service.layer.canvasGrid
-      .search(service.viewport.viewportBounds)
+    return service.gfx.grid
+      .search(service.viewport.viewportBounds, undefined, {
+        filter: model => !('flavour' in model),
+      })
       .map(e => e.id);
   });
 }
@@ -1698,6 +1714,16 @@ export async function edgelessCommonSetup(page: Page) {
   await initEmptyEdgelessState(page);
   await switchEditorMode(page);
   await deleteAll(page);
+  await resetHistory(page);
+}
+
+export async function createFrame(
+  page: Page,
+  coord1: [number, number],
+  coord2: [number, number]
+) {
+  await page.keyboard.press('f');
+  await dragBetweenViewCoords(page, coord1, coord2);
 }
 
 export async function createShapeElement(

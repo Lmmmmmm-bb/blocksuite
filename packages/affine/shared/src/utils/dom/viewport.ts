@@ -1,5 +1,4 @@
-import type { BlockComponent } from '@blocksuite/block-std';
-import type { EditorHost } from '@blocksuite/block-std';
+import type { BlockComponent, EditorHost } from '@blocksuite/block-std';
 
 import { isInsidePageEditor } from './checker.js';
 
@@ -21,7 +20,7 @@ export function getViewportElement(editorHost: EditorHost): HTMLElement | null {
     console.error('Failed to get root doc');
     return null;
   }
-  const rootComponent = editorHost.view.viewFromPath('block', [doc.root.id]);
+  const rootComponent = editorHost.view.getBlock(doc.root.id);
 
   if (
     !rootComponent ||

@@ -177,7 +177,7 @@ export function requestThrottledConnectedFrame<
   return ((...args: unknown[]) => {
     latestArgs = args;
 
-    raqId && cancelAnimationFrame(raqId);
+    if (raqId) return;
 
     raqId = requestConnectedFrame(() => {
       raqId = undefined;
@@ -185,3 +185,12 @@ export function requestThrottledConnectedFrame<
     }, element);
   }) as T;
 }
+
+export const captureEventTarget = (target: EventTarget | null) => {
+  const isElementOrNode = target instanceof Element || target instanceof Node;
+  return isElementOrNode
+    ? target instanceof Element
+      ? target
+      : target.parentElement
+    : null;
+};

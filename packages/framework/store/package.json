@@ -1,16 +1,21 @@
 {
   "name": "@blocksuite/store",
-  "version": "0.16.0",
+  "version": "0.17.18",
   "description": "BlockSuite data store built for general purpose state management.",
   "type": "module",
-  "repository": "toeverything/blocksuite",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toeverything/blocksuite.git",
+    "directory": "packages/framework/store"
+  },
   "scripts": {
     "build": "tsc",
     "test:unit": "nx vite:test --run",
     "test:unit:coverage": "nx vite:test --run --coverage",
     "test:unit:ui": "nx vite:test --ui",
-    "test": "pnpm test:unit"
+    "test": "yarn test:unit"
   },
+  "sideEffects": false,
   "keywords": [],
   "author": "toeverything",
   "license": "MPL-2.0",
@@ -21,8 +26,10 @@
     "@preact/signals-core": "^1.8.0",
     "@types/flexsearch": "^0.7.6",
     "@types/lodash.ismatch": "^4.4.9",
+    "file-type": "^19.5.0",
     "flexsearch": "0.7.43",
     "lib0": "^0.2.97",
+    "lodash.clonedeep": "^4.5.0",
     "lodash.ismatch": "^4.4.0",
     "lodash.merge": "^4.6.2",
     "minimatch": "^10.0.1",
@@ -31,16 +38,16 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/lodash.clonedeep": "^4.5.9",
     "@types/lodash.merge": "^4.6.9",
     "lit": "^3.2.0",
     "yjs": "^13.6.18"
   },
   "peerDependencies": {
-    "yjs": "^13.6.15"
+    "yjs": "^13.6.18"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./providers/*": "./src/providers/*.ts"
+    ".": "./src/index.ts"
   },
   "publishConfig": {
     "access": "public",
@@ -58,7 +65,6 @@
   "files": [
     "src",
     "dist",
-    "providers",
     "!src/__tests__",
     "!dist/__tests__"
   ]

@@ -9,19 +9,17 @@ import {
   AlignVerticallyIcon,
   SmallArrowDownIcon,
 } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { Bound } from '@blocksuite/global/utils';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { repeat } from 'lit/directives/repeat.js';
-
-import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
-
 import {
   ConnectorElementModel,
   GroupElementModel,
   MindmapElementModel,
-} from '../../../surface-block/index.js';
+} from '@blocksuite/affine-model';
+import { Bound, WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
+
+import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 
 const enum Alignment {
   Bottom = 'Align bottom',
@@ -73,8 +71,11 @@ const ALIGNMENT_LIST = [
   },
 ] as const;
 
-@customElement('edgeless-align-button')
 export class EdgelessAlignButton extends WithDisposable(LitElement) {
+  private get elements() {
+    return this.edgeless.service.selection.selectedElements;
+  }
+
   private _align(type: Alignment) {
     switch (type) {
       case Alignment.Left:
@@ -247,10 +248,6 @@ export class EdgelessAlignButton extends WithDisposable(LitElement) {
         xywh: bound.serialize(),
       });
     }
-  }
-
-  private get elements() {
-    return this.edgeless.service.selection.selectedElements;
   }
 
   override firstUpdated() {

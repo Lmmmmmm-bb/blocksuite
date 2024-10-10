@@ -1,19 +1,23 @@
 import type { Doc } from '@blocksuite/store';
 
-import { SignalWatcher } from '@lit-labs/preact-signals';
+import { SignalWatcher, WithDisposable } from '@blocksuite/global/utils';
 import { html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import type { ExtensionType } from '../extension/index.js';
 
 import { BlockStdScope } from '../scope/index.js';
-import { ShadowlessElement, WithDisposable } from '../view/index.js';
+import { ShadowlessElement } from '../view/index.js';
 
 @customElement('test-editor-container')
 export class TestEditorContainer extends SignalWatcher(
   WithDisposable(ShadowlessElement)
 ) {
   private _std!: BlockStdScope;
+
+  get std() {
+    return this._std;
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -27,10 +31,6 @@ export class TestEditorContainer extends SignalWatcher(
     return html` <div class="test-editor-container">
       ${this._std.render()}
     </div>`;
-  }
-
-  get std() {
-    return this._std;
   }
 
   @property({ attribute: false })

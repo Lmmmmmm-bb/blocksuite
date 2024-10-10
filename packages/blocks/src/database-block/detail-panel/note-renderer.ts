@@ -1,19 +1,19 @@
 import type { DatabaseBlockModel } from '@blocksuite/affine-model';
+import type { DetailSlotProps, SingleView } from '@blocksuite/data-view';
 
 import { focusTextModel } from '@blocksuite/affine-components/rich-text';
 import {
   createDefaultDoc,
   matchFlavours,
 } from '@blocksuite/affine-shared/utils';
-import { BlockStdScope, type EditorHost } from '@blocksuite/block-std';
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
+import {
+  BlockStdScope,
+  type EditorHost,
+  ShadowlessElement,
+} from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { css, html } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
-
-import type { DetailSlotProps } from '../data-view/common/data-source/base.js';
-import type { SingleView } from '../data-view/view-manager/single-view.js';
-
-@customElement('database-datasource-note-renderer')
+import { property, query } from 'lit/decorators.js';
 export class NoteRenderer
   extends WithDisposable(ShadowlessElement)
   implements DetailSlotProps
@@ -25,6 +25,10 @@ export class NoteRenderer
       flex: 1;
     }
   `;
+
+  get databaseBlock(): DatabaseBlockModel {
+    return this.model;
+  }
 
   addNote() {
     const collection = this.host?.std.collection;
@@ -101,13 +105,9 @@ export class NoteRenderer
     }
     const previewStd = new BlockStdScope({
       doc: page,
-      extensions: std.extensions,
+      extensions: std.userExtensions,
     });
     return html`${previewStd.render()} `;
-  }
-
-  get databaseBlock(): DatabaseBlockModel {
-    return this.model;
   }
 
   @property({ attribute: false })

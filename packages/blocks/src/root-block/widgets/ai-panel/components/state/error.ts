@@ -1,9 +1,9 @@
 import type { EditorHost } from '@blocksuite/block-std';
 
-import { WithDisposable } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property } from 'lit/decorators.js';
 import { choose } from 'lit/directives/choose.js';
 
 import type { AIPanelErrorConfig, CopyConfig } from '../../type.js';
@@ -13,22 +13,8 @@ import {
   type AIItemGroupConfig,
 } from '../../../../../_common/components/index.js';
 import { filterAIItemGroup } from '../../utils.js';
-import '../finish-tip.js';
 
-@customElement('ai-panel-error')
 export class AIPanelError extends WithDisposable(LitElement) {
-  private _getResponseGroup = () => {
-    let responseGroup: AIItemGroupConfig[] = [];
-    const errorType = this.config.error?.type;
-    if (errorType && errorType !== AIErrorType.GeneralNetworkError) {
-      return responseGroup;
-    }
-
-    responseGroup = filterAIItemGroup(this.host, this.config.responses);
-
-    return responseGroup;
-  };
-
   static override styles = css`
     :host {
       width: 100%;
@@ -143,6 +129,18 @@ export class AIPanelError extends WithDisposable(LitElement) {
     }
   `;
 
+  private _getResponseGroup = () => {
+    let responseGroup: AIItemGroupConfig[] = [];
+    const errorType = this.config.error?.type;
+    if (errorType && errorType !== AIErrorType.GeneralNetworkError) {
+      return responseGroup;
+    }
+
+    responseGroup = filterAIItemGroup(this.host, this.config.responses);
+
+    return responseGroup;
+  };
+
   override render() {
     const responseGroup = this._getResponseGroup();
     const errorTemplate = choose(
@@ -187,29 +185,18 @@ export class AIPanelError extends WithDisposable(LitElement) {
       () => {
         const tip = this.config.error?.message;
         const error = tip
-          ? html`<a class="tip" href="#" data-tip="${tip}"
-              >An error occurred</a
+          ? html`<span class="error-tip"
+              >An error occurred<affine-tooltip
+                tip-position="bottom-start"
+                .arrow=${false}
+                >${tip}</affine-tooltip
+              ></span
             >`
           : 'An error occurred';
         return html`
           <style>
-            .tip {
-              position: relative;
-              cursor: pointer;
-            }
-
-            .tip:hover::after {
-              content: attr(data-tip);
-              position: absolute;
-              left: 0;
-              top: 20px;
-              background-color: black;
-              white-space: nowrap;
-              color: white;
-              padding: 5px 10px;
-              border-radius: 5px;
-              z-index: 1000;
-              white-space: pre;
+            .error-tip {
+              text-decoration: underline;
             }
           </style>
           <div class="error-info">

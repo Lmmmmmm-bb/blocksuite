@@ -1,9 +1,9 @@
 import type { EditorHost } from '@blocksuite/block-std';
-import type { EdgelessRootBlockComponent } from '@blocksuite/blocks';
 
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, type PropertyValues, css, html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { EdgelessRootService, EditPropsStore } from '@blocksuite/blocks';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, type PropertyValues } from 'lit';
+import { property, state } from 'lit/decorators.js';
 
 const styles = css`
   :host {
@@ -70,59 +70,55 @@ const styles = css`
 
 export const AFFINE_FRAMES_SETTING_MENU = 'affine-frames-setting-menu';
 
-@customElement(AFFINE_FRAMES_SETTING_MENU)
 export class FramesSettingMenu extends WithDisposable(LitElement) {
+  static override styles = styles;
+
   private _onBlackBackgroundChange = (checked: boolean) => {
     this.blackBackground = checked;
-    this.edgeless?.slots.navigatorSettingUpdated.emit({
+    this._edgelessRootService?.slots.navigatorSettingUpdated.emit({
       blackBackground: this.blackBackground,
     });
   };
 
   private _onFillScreenChange = (checked: boolean) => {
     this.fillScreen = checked;
-    this.edgeless?.slots.navigatorSettingUpdated.emit({
+    this._edgelessRootService?.slots.navigatorSettingUpdated.emit({
       fillScreen: this.fillScreen,
     });
-    this._rootService.editPropsStore.setStorage(
-      'presentFillScreen',
-      this.fillScreen
-    );
+    this._editPropsStore.setStorage('presentFillScreen', this.fillScreen);
   };
 
   private _onHideToolBarChange = (checked: boolean) => {
     this.hideToolbar = checked;
-    this.edgeless?.slots.navigatorSettingUpdated.emit({
+    this._edgelessRootService?.slots.navigatorSettingUpdated.emit({
       hideToolbar: this.hideToolbar,
     });
-    this._rootService.editPropsStore.setStorage(
-      'presentHideToolbar',
-      this.hideToolbar
-    );
+    this._editPropsStore.setStorage('presentHideToolbar', this.hideToolbar);
   };
 
-  static override styles = styles;
+  private get _edgelessRootService() {
+    return this.editorHost.std.getOptional(EdgelessRootService);
+  }
 
-  private get _rootService() {
-    return this.editorHost.std.getService('affine:page');
+  private get _editPropsStore() {
+    return this.editorHost.std.get(EditPropsStore);
   }
 
   private _tryRestoreSettings() {
-    const { editPropsStore } = this._rootService;
-    const blackBackground = editPropsStore.getStorage('presentBlackBackground');
+    const blackBackground = this._editPropsStore.getStorage(
+      'presentBlackBackground'
+    );
 
     this.blackBackground = blackBackground ?? true;
-    this.fillScreen = editPropsStore.getStorage('presentFillScreen') ?? false;
-    this.hideToolbar = editPropsStore.getStorage('presentHideToolbar') ?? false;
+    this.fillScreen =
+      this._editPropsStore.getStorage('presentFillScreen') ?? false;
+    this.hideToolbar =
+      this._editPropsStore.getStorage('presentHideToolbar') ?? false;
   }
 
   override connectedCallback() {
     super.connectedCallback();
     this._tryRestoreSettings();
-  }
-
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
   }
 
   override render() {
@@ -172,10 +168,10 @@ export class FramesSettingMenu extends WithDisposable(LitElement) {
   }
 
   override updated(_changedProperties: PropertyValues) {
-    if (_changedProperties.has('edgeless')) {
-      if (this.edgeless) {
+    if (_changedProperties.has('editorHost')) {
+      if (this._edgelessRootService) {
         this.disposables.add(
-          this.edgeless.slots.navigatorSettingUpdated.on(
+          this._edgelessRootService.slots.navigatorSettingUpdated.on(
             ({ blackBackground, hideToolbar }) => {
               if (
                 blackBackground !== undefined &&
@@ -201,9 +197,6 @@ export class FramesSettingMenu extends WithDisposable(LitElement) {
 
   @state()
   accessor blackBackground = false;
-
-  @property({ attribute: false })
-  accessor edgeless!: EdgelessRootBlockComponent | null;
 
   @property({ attribute: false })
   accessor editorHost!: EditorHost;

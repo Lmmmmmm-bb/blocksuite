@@ -4,11 +4,18 @@ import type { ThemedToken } from 'shiki';
 import { ShadowlessElement } from '@blocksuite/block-std';
 import { type DeltaInsert, ZERO_WIDTH_SPACE } from '@blocksuite/inline';
 import { html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-@customElement('affine-code-unit')
 export class AffineCodeUnit extends ShadowlessElement {
+  get codeBlock() {
+    return this.closest('affine-code');
+  }
+
+  get vElement() {
+    return this.closest('v-element');
+  }
+
   override render() {
     const plainContent = html`<span
       ><v-text .str=${this.delta.insert}></v-text
@@ -79,14 +86,6 @@ export class AffineCodeUnit extends ShadowlessElement {
 
       return html`<span>${vTexts}</span>`;
     }
-  }
-
-  get codeBlock() {
-    return this.closest('affine-code');
-  }
-
-  get vElement() {
-    return this.closest('v-element');
   }
 
   @property({ type: Object })

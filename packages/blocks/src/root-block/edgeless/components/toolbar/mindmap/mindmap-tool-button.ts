@@ -1,13 +1,20 @@
-import { assertExists } from '@blocksuite/global/utils';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import type {
+  MindmapElementModel,
+  MindmapStyle,
+} from '@blocksuite/affine-model';
+import type { Bound } from '@blocksuite/global/utils';
+
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
+import { SignalWatcher } from '@blocksuite/global/utils';
+import { computed } from '@preact/signals-core';
+import { css, html, LitElement, nothing } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { EdgelessTool } from '../../../types.js';
 
-import { MindmapStyle } from '../../../../../surface-block/index.js';
 import { EdgelessDraggableElementController } from '../common/draggable/draggable-element.controller.js';
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
 import { getMindMaps } from './assets.js';
@@ -20,11 +27,10 @@ import {
   toolConfig2StyleObj,
 } from './basket-elements.js';
 import { basketIconDark, basketIconLight, textIcon } from './icons.js';
-import './mindmap-menu.js';
+import { importMindmap } from './utils/import-mindmap.js';
 
-@customElement('edgeless-mindmap-tool-button')
 export class EdgelessMindmapToolButton extends EdgelessToolbarToolMixin(
-  LitElement
+  SignalWatcher(LitElement)
 ) {
   static override styles = css`
     :host {
@@ -117,11 +123,43 @@ export class EdgelessMindmapToolButton extends EdgelessToolbarToolMixin(
     }
   `;
 
+  private _style$ = computed(() => {
+    const { style } =
+      this.edgeless.std.get(EditPropsStore).lastProps$.value.mindmap;
+    return style;
+  });
+
   draggableController!: EdgelessDraggableElementController<DraggableTool>;
 
   override enableActiveBackground = true;
 
   override type: EdgelessTool['type'][] = ['mindmap', 'text'];
+
+  get draggableTools(): DraggableTool[] {
+    const style = this._style$.value;
+    const mindmap =
+      this.mindmaps.find(m => m.style === style) || this.mindmaps[0];
+    return [
+      {
+        name: 'text',
+        icon: textIcon,
+        config: textConfig,
+        standardWidth: 100,
+        render: textRender,
+      },
+      {
+        name: 'mindmap',
+        icon: mindmap.icon,
+        config: mindmapConfig,
+        standardWidth: 350,
+        render: getMindmapRender(style),
+      },
+    ];
+  }
+
+  get mindmaps() {
+    return getMindMaps(this.theme);
+  }
 
   private _toggleMenu() {
     if (this.tryDisposePopper()) return;
@@ -130,9 +168,30 @@ export class EdgelessMindmapToolButton extends EdgelessToolbarToolMixin(
     const menu = this.createPopper('edgeless-mindmap-menu', this);
     Object.assign(menu.element, {
       edgeless: this.edgeless,
-      activeStyle: this.activeStyle,
       onActiveStyleChange: (style: MindmapStyle) => {
-        this.activeStyle = style;
+        this.edgeless.std.get(EditPropsStore).recordLastProps('mindmap', {
+          style,
+        });
+      },
+      onImportMindMap: (bound: Bound) => {
+        return importMindmap(bound).then(mindmap => {
+          const id = this.edgeless.service.addElement('mindmap', {
+            children: mindmap,
+            layoutType: mindmap?.layoutType === 'left' ? 1 : 0,
+          });
+          const element = this.edgeless.service.getElementById(
+            id
+          ) as MindmapElementModel;
+
+          this.tryDisposePopper();
+          this.setEdgelessTool(
+            { type: 'default' },
+            {
+              elements: [element.tree.id],
+              editing: false,
+            }
+          );
+        });
       },
     });
   }
@@ -205,13 +264,14 @@ export class EdgelessMindmapToolButton extends EdgelessToolbarToolMixin(
           if (this.readyToDrop) {
             // change the style
             const activeIndex = this.mindmaps.findIndex(
-              m => m.style === this.activeStyle
+              m => m.style === this._style$.value
             );
             const nextIndex = (activeIndex + 1) % this.mindmaps.length;
             const next = this.mindmaps[nextIndex];
-            this.activeStyle = next.style;
+            this.edgeless.std.get(EditPropsStore).recordLastProps('mindmap', {
+              style: next.style,
+            });
             const tool = this.draggableTools.find(t => t.name === 'mindmap');
-            assertExists(tool);
             this.draggableController.updateElementInfo({
               data: tool,
               preview: next.icon,
@@ -220,7 +280,6 @@ export class EdgelessMindmapToolButton extends EdgelessToolbarToolMixin(
           }
           this.setEdgelessTool({ type: 'mindmap' });
           const icon = this.mindmapElement;
-          assertExists(icon);
           const { x, y } = service.tool.lastMousePos;
           const { left, top } = this.edgeless.viewport;
           const clientPos = { x: x + left, y: y + top };
@@ -348,33 +407,6 @@ export class EdgelessMindmapToolButton extends EdgelessToolbarToolMixin(
       this.initDragController();
     }
   }
-
-  get draggableTools(): DraggableTool[] {
-    const mindmap = this.mindmaps.find(m => m.style === this.activeStyle)!;
-    return [
-      {
-        name: 'text',
-        icon: textIcon,
-        config: textConfig,
-        standardWidth: 100,
-        render: textRender,
-      },
-      {
-        name: 'mindmap',
-        icon: mindmap.icon,
-        config: mindmapConfig,
-        standardWidth: 350,
-        render: getMindmapRender(this.activeStyle),
-      },
-    ];
-  }
-
-  get mindmaps() {
-    return getMindMaps(this.theme);
-  }
-
-  @state()
-  accessor activeStyle: MindmapStyle = MindmapStyle.ONE;
 
   @property({ type: Boolean })
   accessor enableBlur = true;

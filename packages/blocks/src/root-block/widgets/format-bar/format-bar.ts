@@ -11,27 +11,26 @@ import type {
 import { HoverController } from '@blocksuite/affine-components/hover';
 import { isFormatSupported } from '@blocksuite/affine-components/rich-text';
 import {
-  type MenuItemGroup,
   cloneGroups,
+  type MenuItemGroup,
 } from '@blocksuite/affine-components/toolbar';
 import { matchFlavours } from '@blocksuite/affine-shared/utils';
 import { WidgetComponent } from '@blocksuite/block-std';
-import { DisposableGroup, assertExists } from '@blocksuite/global/utils';
+import { assertExists, DisposableGroup } from '@blocksuite/global/utils';
 import {
-  type Placement,
-  type ReferenceElement,
   autoUpdate,
   computePosition,
   inline,
   offset,
+  type Placement,
+  type ReferenceElement,
   shift,
 } from '@floating-ui/dom';
 import { html, nothing } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { query, state } from 'lit/decorators.js';
 
 import type { FormatBarContext } from './context.js';
 
-import '../../../_common/components/button.js';
 import { getMoreMenuConfig } from '../../configs/toolbar.js';
 import { ConfigRenderer } from './components/config-renderer.js';
 import {
@@ -46,8 +45,9 @@ import { formatBarStyle } from './styles.js';
 
 export const AFFINE_FORMAT_BAR_WIDGET = 'affine-format-bar-widget';
 
-@customElement(AFFINE_FORMAT_BAR_WIDGET)
 export class AffineFormatBarWidget extends WidgetComponent {
+  static override styles = formatBarStyle;
+
   private _abortController = new AbortController();
 
   private _floatDisposables: DisposableGroup | null = null;
@@ -56,13 +56,29 @@ export class AffineFormatBarWidget extends WidgetComponent {
 
   private _placement: Placement = 'top';
 
-  static override styles = formatBarStyle;
-
   /*
    * Caches the more menu items.
    * Currently only supports configuring more menu.
    */
   moreGroups: MenuItemGroup<FormatBarContext>[] = cloneGroups(BUILT_IN_GROUPS);
+
+  private get _selectionManager() {
+    return this.host.selection;
+  }
+
+  get displayType() {
+    return this._displayType;
+  }
+
+  get nativeRange() {
+    const sl = document.getSelection();
+    if (!sl || sl.rangeCount === 0) return null;
+    return sl.getRangeAt(0);
+  }
+
+  get selectedBlocks() {
+    return this._selectedBlocks;
+  }
 
   private _calculatePlacement() {
     const rootComponent = this.block;
@@ -324,10 +340,6 @@ export class AffineFormatBarWidget extends WidgetComponent {
     return false;
   }
 
-  private get _selectionManager() {
-    return this.host.selection;
-  }
-
   private _shouldDisplay() {
     const readonly = this.doc.awarenessStore.isReadonly(
       this.doc.blockCollection
@@ -560,20 +572,6 @@ export class AffineFormatBarWidget extends WidgetComponent {
 
     this._floatDisposables = new DisposableGroup();
     this._listenFloatingElement();
-  }
-
-  get displayType() {
-    return this._displayType;
-  }
-
-  get nativeRange() {
-    const sl = document.getSelection();
-    if (!sl || sl.rangeCount === 0) return null;
-    return sl.getRangeAt(0);
-  }
-
-  get selectedBlocks() {
-    return this._selectedBlocks;
   }
 
   @state()

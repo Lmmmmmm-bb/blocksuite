@@ -1,15 +1,20 @@
 {
   "name": "@blocksuite/affine-components",
-  "version": "0.16.0",
+  "version": "0.17.18",
   "description": "Default BlockSuite editable blocks.",
   "type": "module",
-  "repository": "toeverything/blocksuite",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toeverything/blocksuite.git",
+    "directory": "packages/affine/components"
+  },
   "scripts": {
     "build": "tsc",
     "test:unit": "nx vite:test --run --passWithNoTests",
     "test:unit:coverage": "nx vite:test --run --coverage",
     "test:e2e": "playwright test"
   },
+  "sideEffects": false,
   "keywords": [],
   "author": "toeverything",
   "license": "MPL-2.0",
@@ -18,14 +23,15 @@
     "@blocksuite/affine-shared": "workspace:*",
     "@blocksuite/block-std": "workspace:*",
     "@blocksuite/global": "workspace:*",
-    "@blocksuite/icons": "^2.1.66",
+    "@blocksuite/icons": "^2.1.67",
     "@blocksuite/inline": "workspace:*",
     "@blocksuite/store": "workspace:*",
     "@floating-ui/dom": "^1.6.10",
-    "@lit-labs/preact-signals": "^1.0.2",
     "@lit/context": "^1.1.2",
     "@lottiefiles/dotlottie-wc": "^0.2.16",
-    "@toeverything/theme": "^1.0.7",
+    "@preact/signals-core": "^1.8.0",
+    "@toeverything/theme": "^1.0.8",
+    "date-fns": "^4.0.0",
     "katex": "^0.16.11",
     "lit": "^3.2.0",
     "shiki": "^1.12.0",
@@ -41,7 +47,9 @@
     "./toast": "./src/toast/index.ts",
     "./rich-text": "./src/rich-text/index.ts",
     "./caption": "./src/caption/index.ts",
-    "./context-menu": "./src/context-menu/index.ts"
+    "./context-menu": "./src/context-menu/index.ts",
+    "./date-picker": "./src/date-picker/index.ts",
+    "./drag-indicator": "./src/drag-indicator/index.ts"
   },
   "publishConfig": {
     "access": "public",
@@ -87,6 +95,14 @@
       "./context-menu": {
         "types": "./dist/context-menu/index.d.ts",
         "import": "./dist/context-menu/index.js"
+      },
+      "./date-picker": {
+        "types": "./dist/date-picker/index.d.ts",
+        "import": "./dist/date-picker/index.js"
+      },
+      "./drag-indicator": {
+        "types": "./dist/drag-indicator/index.d.ts",
+        "import": "./dist/drag-indicator/index.js"
       }
     }
   },

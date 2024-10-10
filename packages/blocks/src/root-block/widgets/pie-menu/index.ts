@@ -4,7 +4,7 @@ import type { IVec } from '@blocksuite/global/utils';
 import { WidgetComponent } from '@blocksuite/block-std';
 import { noop } from '@blocksuite/global/utils';
 import { nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { state } from 'lit/decorators.js';
 
 import type { PieMenuSchema } from './base.js';
 
@@ -24,7 +24,6 @@ noop(PieNodeChild);
 
 export const AFFINE_PIE_MENU_WIDGET = 'affine-pie-menu-widget';
 
-@customElement(AFFINE_PIE_MENU_WIDGET)
 export class AffinePieMenuWidget extends WidgetComponent {
   private _handleCursorPos = (ctx: UIEventStateContext) => {
     const ev = ctx.get('pointerState');
@@ -53,6 +52,23 @@ export class AffinePieMenuWidget extends WidgetComponent {
     allow: false,
   };
 
+  get isEnabled() {
+    return this.doc.awarenessStore.getFlag('enable_pie_menu');
+  }
+
+  // if key is released before 100ms then the menu is kept open, else
+  get isOpen() {
+    return !!this.currentMenu;
+  }
+
+  get rootComponent(): EdgelessRootBlockComponent {
+    const rootComponent = this.block;
+    if (rootComponent instanceof EdgelessRootBlockComponent) {
+      return rootComponent;
+    }
+    throw new Error('AffinePieMenuWidget is only supported in edgeless');
+  }
+
   private _attachMenu(schema: PieMenuSchema) {
     if (this.currentMenu && this.currentMenu.id === schema.id)
       return this.currentMenu.close();
@@ -70,7 +86,19 @@ export class AffinePieMenuWidget extends WidgetComponent {
     }, PieManager.settings.SELECT_ON_RELEASE_TIMEOUT);
   }
 
-  // if key is released before 100ms then the menu is kept open, else
+  private _initPie() {
+    PieManager.setup({ rootComponent: this.rootComponent });
+
+    this._disposables.add(
+      PieManager.slots.open.on(this._attachMenu.bind(this))
+    );
+  }
+
+  private _onMenuClose() {
+    this.currentMenu = null;
+    this.selectOnTrigRelease.allow = false;
+  }
+
   // on trigger key release it will select the currently hovered menu node
   _createMenu(
     schema: PieMenuSchema,
@@ -96,19 +124,6 @@ export class AffinePieMenuWidget extends WidgetComponent {
     );
 
     return menu;
-  }
-
-  private _initPie() {
-    PieManager.setup({ rootComponent: this.rootComponent });
-
-    this._disposables.add(
-      PieManager.slots.open.on(this._attachMenu.bind(this))
-    );
-  }
-
-  private _onMenuClose() {
-    this.currentMenu = null;
-    this.selectOnTrigRelease.allow = false;
   }
 
   override connectedCallback(): void {
@@ -137,22 +152,6 @@ export class AffinePieMenuWidget extends WidgetComponent {
 
   override render() {
     return this.currentMenu ?? nothing;
-  }
-
-  get isEnabled() {
-    return this.doc.awarenessStore.getFlag('enable_pie_menu');
-  }
-
-  get isOpen() {
-    return !!this.currentMenu;
-  }
-
-  get rootComponent(): EdgelessRootBlockComponent {
-    const rootComponent = this.block;
-    if (rootComponent instanceof EdgelessRootBlockComponent) {
-      return rootComponent;
-    }
-    throw new Error('AffinePieMenuWidget is only supported in edgeless');
   }
 
   @state()

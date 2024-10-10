@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { SelectionExtension } from '../../extension/selection.js';
 import { BaseSelection } from '../base.js';
 
 const CursorSelectionSchema = z.object({
@@ -23,15 +24,14 @@ export class CursorSelection extends BaseSelection {
   }
 
   static override fromJSON(json: Record<string, unknown>): CursorSelection {
-    CursorSelectionSchema.parse(json);
-    return new CursorSelection(json.x as number, json.y as number);
+    const { x, y } = CursorSelectionSchema.parse(json);
+    return new CursorSelection(x, y);
   }
 
   override equals(other: BaseSelection): boolean {
     if (other instanceof CursorSelection) {
       return this.x === other.x && this.y === other.y;
     }
-
     return false;
   }
 
@@ -44,10 +44,4 @@ export class CursorSelection extends BaseSelection {
   }
 }
 
-declare global {
-  namespace BlockSuite {
-    interface Selection {
-      cursor: typeof CursorSelection;
-    }
-  }
-}
+export const CursorSelectionExtension = SelectionExtension(CursorSelection);

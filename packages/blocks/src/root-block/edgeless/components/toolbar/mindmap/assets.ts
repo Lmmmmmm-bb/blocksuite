@@ -1,8 +1,7 @@
 import type { TemplateResult } from 'lit';
 
-import { ColorScheme } from '@blocksuite/affine-model';
+import { ColorScheme, MindmapStyle } from '@blocksuite/affine-model';
 
-import { MindmapStyle } from '../../../../../surface-block/index.js';
 import { type DraggableTool, getMindmapRender } from './basket-elements.js';
 import {
   mindMapStyle1Dark,

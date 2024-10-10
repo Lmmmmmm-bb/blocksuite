@@ -1,12 +1,9 @@
-import {
-  PropTypes,
-  WithDisposable,
-  requiredProperties,
-} from '@blocksuite/block-std';
+import { PropTypes, requiredProperties } from '@blocksuite/block-std';
 import { NoteDisplayMode, scrollbarStyle } from '@blocksuite/blocks';
-import { SignalWatcher, signal } from '@lit-labs/preact-signals';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { SignalWatcher, WithDisposable } from '@blocksuite/global/utils';
+import { signal } from '@preact/signals-core';
+import { css, html, LitElement, nothing } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -24,21 +21,7 @@ export const AFFINE_OUTLINE_VIEWER = 'affine-outline-viewer';
 @requiredProperties({
   editor: PropTypes.object,
 })
-@customElement(AFFINE_OUTLINE_VIEWER)
 export class OutlineViewer extends SignalWatcher(WithDisposable(LitElement)) {
-  private _activeHeadingId$ = signal<string | null>(null);
-
-  private _highlightMaskDisposable = () => {};
-
-  private _lockActiveHeadingId = false;
-
-  private _scrollPanel = () => {
-    this._activeItem?.scrollIntoView({
-      behavior: 'instant',
-      block: 'center',
-    });
-  };
-
   static override styles = css`
     :host {
       display: flex;
@@ -158,6 +141,19 @@ export class OutlineViewer extends SignalWatcher(WithDisposable(LitElement)) {
     }
   `;
 
+  private _activeHeadingId$ = signal<string | null>(null);
+
+  private _highlightMaskDisposable = () => {};
+
+  private _lockActiveHeadingId = false;
+
+  private _scrollPanel = () => {
+    this._activeItem?.scrollIntoView({
+      behavior: 'instant',
+      block: 'center',
+    });
+  };
+
   private async _scrollToBlock(blockId: string) {
     this._lockActiveHeadingId = true;
     this._activeHeadingId$.value = blockId;
@@ -211,6 +207,19 @@ export class OutlineViewer extends SignalWatcher(WithDisposable(LitElement)) {
       ...headingBlocks,
     ];
 
+    const toggleOutlinePanelButton =
+      this.toggleOutlinePanel !== null
+        ? html`<edgeless-tool-icon-button
+            .tooltip=${'Open in sidebar'}
+            .tipPosition=${'top-end'}
+            .activeMode=${'background'}
+            @click=${this._toggleOutlinePanel}
+            data-testid="toggle-outline-panel-button"
+          >
+            ${TocIcon}
+          </edgeless-tool-icon-button>`
+        : nothing;
+
     return html`
       <div class="outline-viewer-root" @mouseenter=${this._scrollPanel}>
         <div class="outline-viewer-indicators-container">
@@ -231,14 +240,7 @@ export class OutlineViewer extends SignalWatcher(WithDisposable(LitElement)) {
         <div class="outline-viewer-panel">
           <div class="outline-viewer-item outline-viewer-header">
             <span>Table of Contents</span>
-            <edgeless-tool-icon-button
-              .tooltip=${'Open in sidebar'}
-              .tipPosition=${'top-end'}
-              .activeMode=${'background'}
-              @click=${this._toggleOutlinePanel}
-            >
-              ${TocIcon}
-            </edgeless-tool-icon-button>
+            ${toggleOutlinePanelButton}
           </div>
           ${repeat(
             items,

@@ -1,8 +1,9 @@
 import type { BaseSelection, UIEventStateContext } from '@blocksuite/block-std';
 
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
-import { type PropertyValues, css, html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, type PropertyValues } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { ImageBlockComponent } from '../image-block.js';
@@ -11,10 +12,7 @@ import { ImageResizeManager } from '../image-resize-manager.js';
 import { shouldResizeImage } from '../utils.js';
 import { ImageSelectedRect } from './image-selected-rect.js';
 
-@customElement('affine-page-image')
 export class ImageBlockPageComponent extends WithDisposable(ShadowlessElement) {
-  private _isDragging = false;
-
   static override styles = css`
     affine-page-image {
       display: flex;
@@ -36,6 +34,20 @@ export class ImageBlockPageComponent extends WithDisposable(ShadowlessElement) {
       height: 100%;
     }
   `;
+
+  private _isDragging = false;
+
+  private get _doc() {
+    return this.block.doc;
+  }
+
+  private get _host() {
+    return this.block.host;
+  }
+
+  private get _model() {
+    return this.block.model;
+  }
 
   private _bindKeyMap() {
     const selection = this._host.selection;
@@ -158,10 +170,6 @@ export class ImageBlockPageComponent extends WithDisposable(ShadowlessElement) {
     });
   }
 
-  private get _doc() {
-    return this.block.doc;
-  }
-
   private _handleError() {
     this.block.error = true;
   }
@@ -214,14 +222,6 @@ export class ImageBlockPageComponent extends WithDisposable(ShadowlessElement) {
         global: true,
       }
     );
-  }
-
-  private get _host() {
-    return this.block.host;
-  }
-
-  private get _model() {
-    return this.block.model;
   }
 
   private _normalizeImageSize() {

@@ -1,16 +1,15 @@
 import type { MenuItemGroup } from '@blocksuite/affine-components/toolbar';
 
 import { renderGroups } from '@blocksuite/affine-components/toolbar';
-import { WithDisposable } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { MoreHorizontalIcon, MoreVerticalIcon } from '@blocksuite/icons/lit';
-import { LitElement, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { EdgelessRootBlockComponent } from '../../../edgeless/edgeless-root-block.js';
 
 import { ElementToolbarMoreMenuContext } from './context.js';
 
-@customElement('edgeless-more-button')
 export class EdgelessMoreButton extends WithDisposable(LitElement) {
   override render() {
     const context = new ElementToolbarMoreMenuContext(this.edgeless);

@@ -1,15 +1,17 @@
 import type { EditorHost } from '@blocksuite/block-std';
-import type { EdgelessRootBlockComponent } from '@blocksuite/blocks';
 
-import { WithDisposable } from '@blocksuite/block-std';
-import { DocModeProvider, type NavigatorMode } from '@blocksuite/blocks';
-import { DocMode, createButtonPopper } from '@blocksuite/blocks';
-import { DisposableGroup } from '@blocksuite/global/utils';
-import { LitElement, type PropertyValues, css, html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import {
+  DocModeProvider,
+  EdgelessRootService,
+  EditPropsStore,
+  type NavigatorMode,
+} from '@blocksuite/blocks';
+import { createButtonPopper } from '@blocksuite/blocks';
+import { DisposableGroup, WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, type PropertyValues } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 
 import { SettingsIcon, SmallFrameNavigatorIcon } from '../../_common/icons.js';
-import './frames-setting-menu.js';
 
 const styles = css`
   :host {
@@ -101,8 +103,9 @@ const styles = css`
 
 export const AFFINE_FRAME_PANEL_HEADER = 'affine-frame-panel-header';
 
-@customElement(AFFINE_FRAME_PANEL_HEADER)
 export class FramePanelHeader extends WithDisposable(LitElement) {
+  static override styles = styles;
+
   private _clearEdgelessDisposables = () => {
     this._edgelessDisposables?.dispose();
     this._edgelessDisposables = null;
@@ -111,19 +114,15 @@ export class FramePanelHeader extends WithDisposable(LitElement) {
   private _edgelessDisposables: DisposableGroup | null = null;
 
   private _enterPresentationMode = () => {
-    if (!this.edgeless) {
-      this.rootService.std.get(DocModeProvider).setMode(DocMode.Edgeless);
+    if (!this._edgelessRootService) {
+      this.editorHost.std.get(DocModeProvider).setEditorMode('edgeless');
     }
 
     setTimeout(() => {
-      this.edgeless?.updateComplete
-        .then(() => {
-          this.edgeless?.tools.setEdgelessTool({
-            type: 'frameNavigator',
-            mode: this._navigatorMode,
-          });
-        })
-        .catch(console.error);
+      this._edgelessRootService?.tool.setEdgelessTool({
+        type: 'frameNavigator',
+        mode: this._navigatorMode,
+      });
     }, 100);
   };
 
@@ -134,23 +133,27 @@ export class FramePanelHeader extends WithDisposable(LitElement) {
   private _navigatorMode: NavigatorMode = 'fit';
 
   private _setEdgelessDisposables = () => {
-    if (!this.edgeless) return;
+    if (!this._edgelessRootService) return;
 
     this._clearEdgelessDisposables();
     this._edgelessDisposables = new DisposableGroup();
     this._edgelessDisposables.add(
-      this.edgeless.slots.navigatorSettingUpdated.on(({ fillScreen }) => {
-        this._navigatorMode = fillScreen ? 'fill' : 'fit';
-      })
+      this._edgelessRootService.slots.navigatorSettingUpdated.on(
+        ({ fillScreen }) => {
+          this._navigatorMode = fillScreen ? 'fill' : 'fit';
+        }
+      )
     );
   };
 
-  static override styles = styles;
+  private get _edgelessRootService() {
+    return this.editorHost.std.getOptional(EdgelessRootService);
+  }
 
   private _tryLoadNavigatorStateLocalRecord() {
     this._navigatorMode = this.editorHost.std
-      .getService('affine:page')
-      .editPropsStore.getStorage('presentFillScreen')
+      .get(EditPropsStore)
+      .getStorage('presentFillScreen')
       ? 'fill'
       : 'fit';
   }
@@ -203,7 +206,6 @@ export class FramePanelHeader extends WithDisposable(LitElement) {
       </div>
       <div class="frames-setting-container">
         <affine-frames-setting-menu
-          .edgeless=${this.edgeless}
           .editorHost=${this.editorHost}
         ></affine-frames-setting-menu>
       </div>
@@ -216,17 +218,13 @@ export class FramePanelHeader extends WithDisposable(LitElement) {
   }
 
   override updated(_changedProperties: PropertyValues) {
-    if (_changedProperties.has('edgeless')) {
-      if (this.edgeless) {
+    if (_changedProperties.has('editorHost')) {
+      if (this._edgelessRootService) {
         this._setEdgelessDisposables();
       } else {
         this._clearEdgelessDisposables();
       }
     }
-  }
-
-  get rootService() {
-    return this.editorHost.std.getService('affine:page');
   }
 
   @query('.all-frames-setting-button')
@@ -237,9 +235,6 @@ export class FramePanelHeader extends WithDisposable(LitElement) {
 
   @state()
   private accessor _settingPopperShow = false;
-
-  @property({ attribute: false })
-  accessor edgeless!: EdgelessRootBlockComponent | null;
 
   @property({ attribute: false })
   accessor editorHost!: EditorHost;

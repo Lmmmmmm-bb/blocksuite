@@ -1,24 +1,22 @@
 import type { BlockModel, Doc } from '@blocksuite/store';
 
-import { WithDisposable } from '@blocksuite/block-std';
 import {
+  createButtonPopper,
   type NoteBlockModel,
   NoteDisplayMode,
-  ThemeObserver,
-  createButtonPopper,
   on,
   once,
+  ThemeObserver,
 } from '@blocksuite/blocks';
-import { SignalWatcher } from '@lit-labs/preact-signals';
+import { SignalWatcher, WithDisposable } from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import type { SelectEvent } from '../utils/custom-events.js';
 
 import { HiddenIcon, SmallArrowDownIcon } from '../../_common/icons.js';
-import './outline-preview.js';
 
 const styles = css`
   :host {
@@ -89,13 +87,16 @@ const styles = css`
 
   .display-mode-button-group {
     display: none;
+    position: absolute;
+    right: 8px;
+    top: -6px;
+    padding-top: 8px;
+    padding-bottom: 8px;
     align-items: center;
     gap: 4px;
-    padding: 2px;
     font-size: 12px;
     font-weight: 500;
     line-height: 20px;
-    position: relative;
   }
 
   .card-preview:hover .display-mode-button-group {
@@ -186,12 +187,11 @@ const styles = css`
 
 export const AFFINE_OUTLINE_NOTE_CARD = 'affine-outline-note-card';
 
-@customElement(AFFINE_OUTLINE_NOTE_CARD)
 export class OutlineNoteCard extends SignalWatcher(WithDisposable(LitElement)) {
+  static override styles = styles;
+
   private _displayModePopper: ReturnType<typeof createButtonPopper> | null =
     null;
-
-  static override styles = styles;
 
   private _dispatchClickBlockEvent(block: BlockModel) {
     const event = new CustomEvent('clickblock', {
@@ -296,7 +296,7 @@ export class OutlineNoteCard extends SignalWatcher(WithDisposable(LitElement)) {
         this._showPopper = display === 'show';
       },
       {
-        mainAxis: 8,
+        mainAxis: 0,
         crossAxis: -60,
       }
     );
@@ -328,9 +328,11 @@ export class OutlineNoteCard extends SignalWatcher(WithDisposable(LitElement)) {
           @dblclick=${this._dispatchFitViewEvent}
         >
         ${html`<div class=${cardHeaderClasses}>
-          ${this.invisible
-            ? html`<span class="card-header-icon">${HiddenIcon}</span>`
-            : html`<span class="card-number">${this.number}</span>`}
+          ${
+            this.invisible
+              ? html`<span class="card-header-icon">${HiddenIcon}</span>`
+              : html`<span class="card-number">${this.number}</span>`
+          }
           <span class="card-divider"></span>
           <div class="display-mode-button-group">
             <span class="display-mode-button-label">Show in</span>
@@ -349,6 +351,7 @@ export class OutlineNoteCard extends SignalWatcher(WithDisposable(LitElement)) {
                 ${SmallArrowDownIcon}
               </div>
             </edgeless-tool-icon-button>
+          </div>
           </div>
           <note-display-mode-panel
             .displayMode=${displayMode}

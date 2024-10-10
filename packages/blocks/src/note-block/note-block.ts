@@ -1,15 +1,10 @@
-/// <reference types="vite/client" />
 import type { NoteBlockModel } from '@blocksuite/affine-model';
 
 import { BlockComponent } from '@blocksuite/block-std';
 import { css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
 
 import type { NoteBlockService } from './note-service.js';
 
-import { KeymapController } from './keymap-controller.js';
-
-@customElement('affine-note')
 export class NoteBlockComponent extends BlockComponent<
   NoteBlockModel,
   NoteBlockService
@@ -23,12 +18,8 @@ export class NoteBlockComponent extends BlockComponent<
     }
   `;
 
-  keymapController = new KeymapController(this);
-
   override connectedCallback() {
     super.connectedCallback();
-
-    this.keymapController.bind();
   }
 
   override renderBlock() {

@@ -1,12 +1,11 @@
-import type {
-  Chain,
-  Command,
-  CommandKeyToData,
-  InitCommandCtx,
+import {
+  BLOCK_ID_ATTR,
+  type BlockComponent,
+  type Chain,
+  type Command,
+  type CommandKeyToData,
+  type InitCommandCtx,
 } from '@blocksuite/block-std';
-import type { BlockComponent } from '@blocksuite/block-std';
-
-import { BLOCK_ID_ATTR } from '@blocksuite/affine-shared/consts';
 import { assertExists } from '@blocksuite/global/utils';
 import {
   INLINE_ROOT_ATTR,
@@ -14,11 +13,10 @@ import {
   type InlineRange,
   type InlineRootElement,
 } from '@blocksuite/inline';
+import { effect } from '@preact/signals-core';
 
-import type {
-  AffineInlineEditor,
-  AffineTextAttributes,
-} from '../inline/index.js';
+import type { AffineTextAttributes } from '../extension/index.js';
+import type { AffineInlineEditor } from '../inline/index.js';
 
 import {
   FORMAT_BLOCK_SUPPORT_FLAVOURS,
@@ -258,17 +256,17 @@ export function clearMarksOnDiscontinuousInput(
   inlineEditor: InlineEditor
 ): void {
   let inlineRange = inlineEditor.getInlineRange();
-  const dispose = inlineEditor.slots.inlineRangeUpdate.on(([r, s]) => {
+  const dispose = effect(() => {
+    const r = inlineEditor.inlineRange$.value;
     if (
       inlineRange &&
       r &&
-      ((!s && r.index === inlineRange.index) ||
-        (s && r.index === inlineRange.index + 1))
+      (inlineRange.index === r.index || inlineRange.index === r.index + 1)
     ) {
       inlineRange = r;
     } else {
       inlineEditor.resetMarks();
-      dispose.dispose();
+      dispose();
     }
   });
 }

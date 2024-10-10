@@ -1,19 +1,16 @@
 import type { BlockCaptionEditor } from '@blocksuite/affine-components/caption';
 import type { ImageBlockModel } from '@blocksuite/affine-model';
 
-import '@blocksuite/affine-components/caption';
 import { Peekable } from '@blocksuite/affine-components/peek';
 import { GfxBlockComponent } from '@blocksuite/block-std';
 import { css, html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { property, query, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { when } from 'lit/directives/when.js';
 
-import type { EdgelessRootService } from '../root-block/index.js';
 import type { ImageBlockFallbackCard } from './components/image-block-fallback.js';
 import type { ImageBlockService } from './image-service.js';
 
-import './components/image-block-fallback.js';
 import {
   copyImageBlob,
   downloadImageBlob,
@@ -22,10 +19,8 @@ import {
   turnImageIntoCardView,
 } from './utils.js';
 
-@customElement('affine-edgeless-image')
 @Peekable()
 export class ImageEdgelessBlockComponent extends GfxBlockComponent<
-  EdgelessRootService,
   ImageBlockModel,
   ImageBlockService
 > {
@@ -63,8 +58,6 @@ export class ImageEdgelessBlockComponent extends GfxBlockComponent<
       .catch(console.error);
   };
 
-  override rootServiceFlavour: string = 'affine:page';
-
   private _handleError(error: Error) {
     this.dispatchEvent(new CustomEvent('error', { detail: error }));
   }
@@ -89,9 +82,12 @@ export class ImageEdgelessBlockComponent extends GfxBlockComponent<
   }
 
   override renderGfxBlock() {
+    const rotate = this.model.rotate ?? 0;
     const containerStyleMap = styleMap({
       position: 'relative',
       width: '100%',
+      transform: `rotate(${rotate}deg)`,
+      transformOrigin: 'center',
     });
 
     return html`
@@ -120,10 +116,6 @@ export class ImageEdgelessBlockComponent extends GfxBlockComponent<
 
       ${Object.values(this.widgets)}
     `;
-  }
-
-  override toZIndex() {
-    return `${this.rootService.layer.getZIndex(this.model)}`;
   }
 
   override updated() {

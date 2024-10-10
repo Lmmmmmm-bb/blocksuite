@@ -1,10 +1,13 @@
 import { EnterIcon } from '@blocksuite/affine-components/icons';
-import { EditorHost } from '@blocksuite/block-std';
-import { WithDisposable } from '@blocksuite/block-std';
-import { PropTypes, requiredProperties } from '@blocksuite/block-std';
+import {
+  EditorHost,
+  PropTypes,
+  requiredProperties,
+} from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { AIItemConfig, AISubItemConfig } from './types.js';
 
@@ -14,18 +17,7 @@ import { menuItemStyles } from './styles.js';
   host: PropTypes.instanceOf(EditorHost),
   item: PropTypes.object,
 })
-@customElement('ai-sub-item-list')
 export class AISubItemList extends WithDisposable(LitElement) {
-  private _handleClick = (subItem: AISubItemConfig) => {
-    if (subItem.handler) {
-      // TODO: add parameters to ai handler
-      subItem.handler(this.host);
-    }
-
-    this.abortController.abort();
-    this.onClick?.();
-  };
-
   static override styles = css`
     .ai-sub-menu {
       display: flex;
@@ -53,6 +45,16 @@ export class AISubItemList extends WithDisposable(LitElement) {
     }
     ${menuItemStyles}
   `;
+
+  private _handleClick = (subItem: AISubItemConfig) => {
+    if (subItem.handler) {
+      // TODO: add parameters to ai handler
+      subItem.handler(this.host);
+    }
+
+    this.abortController.abort();
+    this.onClick?.();
+  };
 
   override render() {
     if (!this.item.subItem || this.item.subItem.length <= 0) return nothing;

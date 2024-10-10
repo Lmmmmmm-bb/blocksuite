@@ -1,5 +1,6 @@
 import type { FrameBlockModel } from '@blocksuite/affine-model';
 
+import { CommonUtils } from '@blocksuite/affine-block-surface';
 import {
   FrameNavigatorNextIcon,
   FrameNavigatorPrevIcon,
@@ -8,27 +9,23 @@ import {
   StopAIIcon,
 } from '@blocksuite/affine-components/icons';
 import { toast } from '@blocksuite/affine-components/toast';
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
 import { Bound } from '@blocksuite/global/utils';
 import { cssVar } from '@toeverything/theme';
-import { LitElement, type PropertyValues, css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
+import { property, state } from 'lit/decorators.js';
 
 import type { NavigatorMode } from '../../../../_common/edgeless/frame/consts.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless-root-block.js';
 import type { EdgelessTool } from '../../types.js';
 
-import { clamp } from '../../../../surface-block/index.js';
 import { isFrameBlock } from '../../utils/query.js';
 import { launchIntoFullscreen } from '../utils.js';
 import { EdgelessToolbarToolMixin } from './mixins/tool.mixin.js';
-import './present/navigator-setting-button.js';
 
-@customElement('presentation-toolbar')
+const { clamp } = CommonUtils;
+
 export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
-  private _cachedIndex = -1;
-
-  private _timer?: ReturnType<typeof setTimeout>;
-
   static override styles = css`
     :host {
       align-items: inherit;
@@ -105,28 +102,72 @@ export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
     }
   `;
 
+  private _cachedIndex = -1;
+
+  private _timer?: ReturnType<typeof setTimeout>;
+
   override type: EdgelessTool['type'] = 'frameNavigator';
+
+  private get _cachedPresentHideToolbar() {
+    return !!this.edgeless.std
+      .get(EditPropsStore)
+      .getStorage('presentHideToolbar');
+  }
+
+  private set _cachedPresentHideToolbar(value) {
+    this.edgeless.std
+      .get(EditPropsStore)
+      .setStorage('presentHideToolbar', !!value);
+  }
+
+  private get _frames(): FrameBlockModel[] {
+    return this.edgeless.service.frames;
+  }
+
+  get dense() {
+    return this.containerWidth < 554;
+  }
+
+  get host() {
+    return this.edgeless.host;
+  }
 
   constructor(edgeless: EdgelessRootBlockComponent) {
     super();
     this.edgeless = edgeless;
   }
 
-  private get _cachedPresentHideToolbar() {
-    return !!this.edgeless.service.editPropsStore.getStorage(
-      'presentHideToolbar'
+  private _bindHotKey() {
+    const handleKeyIfFrameNavigator = (action: () => void) => () => {
+      if (this.edgelessTool.type === 'frameNavigator') {
+        action();
+      }
+    };
+
+    this.edgeless.bindHotKey(
+      {
+        ArrowLeft: handleKeyIfFrameNavigator(() => this._previousFrame()),
+        ArrowRight: handleKeyIfFrameNavigator(() => this._nextFrame()),
+        Escape: handleKeyIfFrameNavigator(() => this._exitPresentation()),
+      },
+      {
+        global: true,
+      }
     );
   }
 
-  private set _cachedPresentHideToolbar(value) {
-    this.edgeless.service.editPropsStore.setStorage(
-      'presentHideToolbar',
-      !!value
+  private _exitPresentation() {
+    // When exit presentation mode, we need to set the tool to default or pan
+    // And exit fullscreen
+    this.setEdgelessTool(
+      this.edgeless.doc.readonly
+        ? { type: 'pan', panning: false }
+        : { type: 'default' }
     );
-  }
 
-  private get _frames(): FrameBlockModel[] {
-    return this.edgeless.service.frames;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(console.error);
+    }
   }
 
   private _moveToCurrentFrame() {
@@ -180,44 +221,26 @@ export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
     }
   }
 
+  /**
+   * Toggle fullscreen, but keep edgeless tool to frameNavigator
+   * If already fullscreen, exit fullscreen
+   * If not fullscreen, enter fullscreen
+   */
   private _toggleFullScreen() {
     if (document.fullscreenElement) {
-      clearTimeout(this._timer);
       document.exitFullscreen().catch(console.error);
+      this._fullScreenMode = false;
     } else {
       launchIntoFullscreen(this.edgeless.viewportElement);
-      this._timer = setTimeout(() => {
-        this._currentFrameIndex = this._cachedIndex;
-      }, 400);
+      this._fullScreenMode = true;
     }
-
-    setTimeout(() => this._moveToCurrentFrame(), 400);
-    this.edgeless.slots.fullScreenToggled.emit();
   }
 
   override firstUpdated() {
     const { _disposables, edgeless } = this;
     const { slots } = edgeless;
 
-    _disposables.add(
-      edgeless.bindHotKey(
-        {
-          ArrowLeft: () => {
-            const { type } = this.edgelessTool;
-            if (type !== 'frameNavigator') return;
-            this._previousFrame();
-          },
-          ArrowRight: () => {
-            const { type } = this.edgelessTool;
-            if (type !== 'frameNavigator') return;
-            this._nextFrame();
-          },
-        },
-        {
-          global: true,
-        }
-      )
-    );
+    this._bindHotKey();
 
     _disposables.add(
       slots.edgelessToolUpdated.on(tool => {
@@ -251,8 +274,33 @@ export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
       })
     );
 
+    _disposables.addFromEvent(document, 'fullscreenchange', () => {
+      if (document.fullscreenElement) {
+        // When enter fullscreen, we need to set current frame to the cached index
+        this._timer = setTimeout(() => {
+          this._currentFrameIndex = this._cachedIndex;
+        }, 400);
+      } else {
+        // When exit fullscreen, we need to clear the timer
+        clearTimeout(this._timer);
+        if (
+          this.edgelessTool.type === 'frameNavigator' &&
+          this._fullScreenMode
+        ) {
+          this.setEdgelessTool(
+            this.edgeless.doc.readonly
+              ? { type: 'pan', panning: false }
+              : { type: 'default' }
+          );
+        }
+      }
+
+      setTimeout(() => this._moveToCurrentFrame(), 400);
+      this.edgeless.slots.fullScreenToggled.emit();
+    });
+
     this._navigatorMode =
-      this.edgeless.service.editPropsStore.getStorage('presentFillScreen') ===
+      this.edgeless.std.get(EditPropsStore).getStorage('presentFillScreen') ===
       true
         ? 'fill'
         : 'fit';
@@ -262,7 +310,6 @@ export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
     const current = this._currentFrameIndex;
     const frames = this._frames;
     const frame = frames[current];
-    const { doc } = this.edgeless;
 
     return html`
       <style>
@@ -346,13 +393,7 @@ export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
 
       <button
         class="edgeless-frame-navigator-stop"
-        @click=${() => {
-          this.setEdgelessTool(
-            doc.readonly ? { type: 'pan', panning: false } : { type: 'default' }
-          );
-
-          document.fullscreenElement && this._toggleFullScreen();
-        }}
+        @click=${this._exitPresentation}
         style="background: ${cssVar('warningColor')}"
       >
         ${StopAIIcon}
@@ -369,20 +410,14 @@ export class PresentationToolbar extends EdgelessToolbarToolMixin(LitElement) {
     }
   }
 
-  get dense() {
-    return this.containerWidth < 554;
-  }
-
-  get host() {
-    return this.edgeless.host;
-  }
-
   @state({
     hasChanged() {
       return true;
     },
   })
   private accessor _currentFrameIndex = 0;
+
+  private accessor _fullScreenMode = true;
 
   @state()
   private accessor _navigatorMode: NavigatorMode = 'fit';

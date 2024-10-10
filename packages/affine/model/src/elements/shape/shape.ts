@@ -11,30 +11,28 @@ import type {
 } from '@blocksuite/global/utils';
 
 import {
-  type Color,
-  DEFAULT_ROUGHNESS,
-  FontFamily,
-  FontStyle,
-  FontWeight,
-  StrokeStyle,
-  TextAlign,
-  type TextStyleProps,
-  TextVerticalAlign,
-} from '@blocksuite/affine-model';
-import {
-  GfxPrimitiveElementModel,
   field,
+  GfxPrimitiveElementModel,
   local,
 } from '@blocksuite/block-std/gfx';
 import { DocCollection, type Y } from '@blocksuite/store';
 
 import {
+  type Color,
+  DEFAULT_ROUGHNESS,
+  FontFamily,
+  FontStyle,
+  FontWeight,
   LineColor,
   ShapeFillColor,
   ShapeStyle,
   ShapeTextFontSize,
   ShapeType,
+  StrokeStyle,
+  TextAlign,
   TextResizing,
+  type TextStyleProps,
+  TextVerticalAlign,
 } from '../../consts/index.js';
 import { shapeMethods } from './api/index.js';
 
@@ -62,6 +60,10 @@ export const SHAPE_TEXT_VERTICAL_PADDING = 10;
 
 export class ShapeElementModel extends GfxPrimitiveElementModel<ShapeProps> {
   textBound: IBound | null = null;
+
+  get type() {
+    return 'shape';
+  }
 
   static override propsToY(props: ShapeProps) {
     if (props.text && !(props.text instanceof DocCollection.Y.Text)) {
@@ -92,10 +94,6 @@ export class ShapeElementModel extends GfxPrimitiveElementModel<ShapeProps> {
       ...options,
       ignoreTransparent: options.ignoreTransparent ?? true,
     });
-  }
-
-  get type() {
-    return 'shape';
   }
 
   @field('#000000' as Color)

@@ -1,6 +1,6 @@
 import { ArrowUpIcon, NoteIcon } from '@blocksuite/affine-components/icons';
-import { LitElement, css, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { NoteTool } from '../../../tools/note-tool.js';
@@ -8,17 +8,10 @@ import type { EdgelessTool } from '../../../types.js';
 import type { EdgelessNoteMenu } from './note-menu.js';
 
 import { getTooltipWithShortcut } from '../../../components/utils.js';
-import '../../buttons/tool-icon-button.js';
-import { type MenuPopper, createPopper } from '../common/create-popper.js';
+import { createPopper, type MenuPopper } from '../common/create-popper.js';
 import { QuickToolMixin } from '../mixins/quick-tool.mixin.js';
-import './note-menu.js';
 
-@customElement('edgeless-note-tool-button')
 export class EdgelessNoteToolButton extends QuickToolMixin(LitElement) {
-  private _noteMenu: MenuPopper<EdgelessNoteMenu> | null = null;
-
-  private _states = ['childFlavour', 'childType', 'tip'] as const;
-
   static override styles = css`
     :host {
       display: flex;
@@ -31,6 +24,10 @@ export class EdgelessNoteToolButton extends QuickToolMixin(LitElement) {
       font-size: 0;
     }
   `;
+
+  private _noteMenu: MenuPopper<EdgelessNoteMenu> | null = null;
+
+  private _states = ['childFlavour', 'childType', 'tip'] as const;
 
   override type: EdgelessTool['type'] = 'affine:note';
 

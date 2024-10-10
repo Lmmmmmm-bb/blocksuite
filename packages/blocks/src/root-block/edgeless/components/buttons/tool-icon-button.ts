@@ -1,12 +1,11 @@
 import type { Placement } from '@floating-ui/dom';
 import type { TemplateResult } from 'lit';
 
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 import { cache } from 'lit/directives/cache.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-@customElement('edgeless-tool-icon-button')
 export class EdgelessToolIconButton extends LitElement {
   static override styles = css`
     .icon-container {

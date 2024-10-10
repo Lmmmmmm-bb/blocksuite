@@ -2,15 +2,14 @@ import type { AffineInlineEditor } from '@blocksuite/affine-components/rich-text
 import type { EditorHost } from '@blocksuite/block-std';
 
 import { MoreHorizontalIcon } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, query, queryAll, state } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement, nothing } from 'lit';
+import { query, queryAll, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { IconButton } from '../../../_common/components/button.js';
 import type { LinkedMenuGroup } from './config.js';
 
-import '../../../_common/components/button.js';
 import {
   cleanSpecifiedTail,
   createKeydownObserver,
@@ -18,8 +17,9 @@ import {
 } from '../../../_common/components/utils.js';
 import { styles } from './styles.js';
 
-@customElement('affine-linked-doc-popover')
 export class LinkedDocPopover extends WithDisposable(LitElement) {
+  static override styles = styles;
+
   private _abort = () => {
     // remove popover dom
     this.abortController.abort();
@@ -35,22 +35,20 @@ export class LinkedDocPopover extends WithDisposable(LitElement) {
 
   private _startRange = this.inlineEditor.getInlineRange();
 
-  static override styles = styles;
+  private _updateLinkedDocGroup = async () => {
+    const query = this._query;
 
-  constructor(
-    private triggerKey: string,
-    private getMenus: (
-      query: string,
-      abort: () => void,
-      editorHost: EditorHost,
-      inlineEditor: AffineInlineEditor
-    ) => Promise<LinkedMenuGroup[]>,
-    private editorHost: EditorHost,
-    private inlineEditor: AffineInlineEditor,
-    private abortController: AbortController
-  ) {
-    super();
-  }
+    if (query === null) {
+      this.abortController.abort();
+      return;
+    }
+    this._linkedDocGroup = await this.getMenus(
+      query,
+      this._abort,
+      this.editorHost,
+      this.inlineEditor
+    );
+  };
 
   private get _actionGroup() {
     return this._linkedDocGroup.map(group => {
@@ -67,6 +65,25 @@ export class LinkedDocPopover extends WithDisposable(LitElement) {
         group.items.map(item => ({ ...item, groupName: group.name }))
       )
       .flat();
+  }
+
+  private get _query() {
+    return getQuery(this.inlineEditor, this._startRange);
+  }
+
+  constructor(
+    private triggerKey: string,
+    private getMenus: (
+      query: string,
+      abort: () => void,
+      editorHost: EditorHost,
+      inlineEditor: AffineInlineEditor
+    ) => Promise<LinkedMenuGroup[]>,
+    private editorHost: EditorHost,
+    private inlineEditor: AffineInlineEditor,
+    private abortController: AbortController
+  ) {
+    super();
   }
 
   private _getActionItems(group: LinkedMenuGroup) {
@@ -94,24 +111,6 @@ export class LinkedDocPopover extends WithDisposable(LitElement) {
     return element.scrollWidth > element.clientWidth;
   }
 
-  private get _query() {
-    return getQuery(this.inlineEditor, this._startRange);
-  }
-
-  private async _updateLinkedDocGroup() {
-    const query = this._query;
-    if (query === null) {
-      this.abortController.abort();
-      return;
-    }
-    this._linkedDocGroup = await this.getMenus(
-      query,
-      this._abort,
-      this.editorHost,
-      this.inlineEditor
-    );
-  }
-
   override connectedCallback() {
     super.connectedCallback();
 
@@ -127,16 +126,21 @@ export class LinkedDocPopover extends WithDisposable(LitElement) {
     createKeydownObserver({
       target: eventSource,
       signal: this.abortController.signal,
-      inlineEditor: this.inlineEditor,
-      onInput: () => {
+      onInput: isComposition => {
         this._activatedItemIndex = 0;
-        void this._updateLinkedDocGroup();
+        if (isComposition) {
+          this._updateLinkedDocGroup().catch(console.error);
+        } else {
+          this.inlineEditor.slots.renderComplete.once(
+            this._updateLinkedDocGroup
+          );
+        }
       },
       onPaste: () => {
         this._activatedItemIndex = 0;
         setTimeout(() => {
-          void this._updateLinkedDocGroup();
-        }, 20);
+          this._updateLinkedDocGroup().catch(console.error);
+        }, 50);
       },
       onDelete: () => {
         const curRange = this.inlineEditor.getInlineRange();
@@ -147,7 +151,7 @@ export class LinkedDocPopover extends WithDisposable(LitElement) {
           this.abortController.abort();
         }
         this._activatedItemIndex = 0;
-        void this._updateLinkedDocGroup();
+        this.inlineEditor.slots.renderComplete.once(this._updateLinkedDocGroup);
       },
       onMove: step => {
         const itemLen = this._flattenActionList.length;

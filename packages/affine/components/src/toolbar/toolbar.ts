@@ -1,10 +1,8 @@
 import { PANEL_BASE } from '@blocksuite/affine-shared/styles';
 import { stopPropagation } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement } from 'lit';
 
-@customElement('editor-toolbar')
 export class EditorToolbar extends WithDisposable(LitElement) {
   static override styles = css`
     :host {

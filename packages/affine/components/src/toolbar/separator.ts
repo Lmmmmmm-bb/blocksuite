@@ -1,7 +1,5 @@
-import { LitElement, css } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { css, LitElement } from 'lit';
 
-@customElement('editor-toolbar-separator')
 export class EditorToolbarSeparator extends LitElement {
   static override styles = css`
     :host {

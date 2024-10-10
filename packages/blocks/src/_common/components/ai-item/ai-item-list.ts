@@ -1,25 +1,50 @@
 import { createLitPortal } from '@blocksuite/affine-components/portal';
-import { EditorHost } from '@blocksuite/block-std';
-import { WithDisposable } from '@blocksuite/block-std';
-import { PropTypes, requiredProperties } from '@blocksuite/block-std';
+import {
+  EditorHost,
+  PropTypes,
+  requiredProperties,
+} from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { flip, offset } from '@floating-ui/dom';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { AIItem } from './ai-item.js';
 import type { AIItemConfig, AIItemGroupConfig } from './types.js';
 
-import './ai-item.js';
 import {
   SUBMENU_OFFSET_CROSS_AXIS,
   SUBMENU_OFFSET_MAIN_AXIS,
 } from './const.js';
 
 @requiredProperties({ host: PropTypes.instanceOf(EditorHost) })
-@customElement('ai-item-list')
 export class AIItemList extends WithDisposable(LitElement) {
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      font-family: ${unsafeCSS(baseTheme.fontSansFamily)};
+      user-select: none;
+    }
+    .group-name {
+      display: flex;
+      padding: 4px calc(var(--item-padding, 8px) + 4px);
+      align-items: center;
+      color: var(--affine-text-secondary-color);
+      text-align: justify;
+      font-size: var(--affine-font-xs);
+      font-style: normal;
+      font-weight: 500;
+      line-height: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  `;
+
   private _abortController: AbortController | null = null;
 
   private _activeSubMenuItem: AIItemConfig | null = null;
@@ -72,6 +97,7 @@ export class AIItemList extends WithDisposable(LitElement) {
         .abortController=${this._abortController}
       ></ai-sub-item-list>`,
       container: aiItemContainer,
+      positionStrategy: 'fixed',
       computePosition: {
         referenceElement: aiItemContainer,
         placement: 'right-start',
@@ -82,30 +108,6 @@ export class AIItemList extends WithDisposable(LitElement) {
       closeOnClickAway: true,
     });
   };
-
-  static override styles = css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      width: 100%;
-      font-family: ${unsafeCSS(baseTheme.fontSansFamily)};
-      user-select: none;
-    }
-    .group-name {
-      display: flex;
-      padding: 4px calc(var(--item-padding, 8px) + 4px);
-      align-items: center;
-      color: var(--affine-text-secondary-color);
-      text-align: justify;
-      font-size: var(--affine-font-xs);
-      font-style: normal;
-      font-weight: 500;
-      line-height: 20px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-  `;
 
   override render() {
     return html`${repeat(this.groups, group => {

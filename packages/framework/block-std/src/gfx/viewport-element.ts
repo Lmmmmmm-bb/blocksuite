@@ -1,9 +1,12 @@
-import { LitElement, css, html } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement } from 'lit';
+import { property, query } from 'lit/decorators.js';
 
 import type { EditorHost } from '../view/index.js';
 import type { GfxBlockElementModel } from './gfx-block-model.js';
-import type { Viewport } from './viewport.js';
+
+import { PropTypes, requiredProperties } from '../view/decorators/required.js';
+import { Viewport } from './viewport.js';
 
 /**
  * A wrapper around `requestConnectedFrame` that only calls at most once in one frame
@@ -29,8 +32,20 @@ export function requestThrottledConnectedFrame<
   }) as T;
 }
 
-@customElement('gfx-viewport')
-export class GfxViewportElement extends LitElement {
+@requiredProperties({
+  viewport: PropTypes.instanceOf(Viewport),
+})
+export class GfxViewportElement extends WithDisposable(LitElement) {
+  static override styles = css`
+    .gfx-viewport {
+      position: absolute;
+      left: 0;
+      top: 0;
+      contain: size layout style;
+      display: block;
+    }
+  `;
+
   private _hideOutsideBlock = requestThrottledConnectedFrame(() => {
     if (this.getModelsInViewport && this.host) {
       const host = this.host;
@@ -81,19 +96,7 @@ export class GfxViewportElement extends LitElement {
 
   private _updatingChildrenFlag = false;
 
-  static override styles = css`
-    .gfx-viewport {
-      position: absolute;
-      left: 0;
-      top: 0;
-      contain: size layout style;
-      display: block;
-    }
-  `;
-
   renderingBlocks = new Set<string>();
-
-  viewport!: Viewport;
 
   private _toCSSTransform(
     translateX: number,
@@ -106,10 +109,18 @@ export class GfxViewportElement extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
 
-    this.viewport.viewportUpdated.on(() => {
+    const viewportUpdateCallback = () => {
       this._refreshViewport();
       this._hideOutsideBlock();
-    });
+    };
+
+    viewportUpdateCallback();
+    this.disposables.add(
+      this.viewport.viewportUpdated.on(() => viewportUpdateCallback())
+    );
+    this.disposables.add(
+      this.viewport.sizeUpdated.on(() => viewportUpdateCallback())
+    );
   }
 
   override render() {
@@ -163,4 +174,7 @@ export class GfxViewportElement extends LitElement {
 
   @property({ type: Number })
   accessor maxConcurrentRenders: number = 2;
+
+  @property({ attribute: false })
+  accessor viewport!: Viewport;
 }

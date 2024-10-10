@@ -1,28 +1,32 @@
 {
   "name": "@blocksuite/block-std",
-  "version": "0.16.0",
+  "version": "0.17.18",
   "description": "Std for blocksuite blocks",
   "type": "module",
-  "repository": "toeverything/blocksuite",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toeverything/blocksuite.git",
+    "directory": "packages/framework/block-std"
+  },
   "scripts": {
     "build": "tsc",
     "test:unit": "nx vite:test --run",
     "test:unit:coverage": "nx vite:test --run --coverage",
     "test:unit:ui": "nx vite:test --ui",
-    "test": "pnpm test:unit"
+    "test": "yarn test:unit"
   },
+  "sideEffects": false,
   "keywords": [],
   "author": "toeverything",
   "license": "MPL-2.0",
-  "peerDependencies": {
-    "@blocksuite/inline": "workspace:*",
-    "@blocksuite/store": "workspace:*"
-  },
   "dependencies": {
     "@blocksuite/global": "workspace:*",
-    "@lit-labs/preact-signals": "^1.0.2",
+    "@blocksuite/inline": "workspace:*",
+    "@blocksuite/store": "workspace:*",
     "@lit/context": "^1.1.2",
+    "@preact/signals-core": "^1.8.0",
     "@types/hast": "^3.0.4",
+    "fractional-indexing": "^3.2.0",
     "lib0": "^0.2.97",
     "lit": "^3.2.0",
     "lz-string": "^1.5.0",
@@ -31,13 +35,10 @@
     "w3c-keyname": "^2.2.8",
     "zod": "^3.23.8"
   },
-  "devDependencies": {
-    "@blocksuite/inline": "workspace:*",
-    "@blocksuite/store": "workspace:*"
-  },
   "exports": {
     ".": "./src/index.ts",
-    "./gfx": "./src/gfx/index.ts"
+    "./gfx": "./src/gfx/index.ts",
+    "./effects": "./src/effects.ts"
   },
   "publishConfig": {
     "access": "public",
@@ -53,6 +54,11 @@
         "types": "./dist/gfx/index.d.ts",
         "module": "./dist/gfx/index.js",
         "import": "./dist/gfx/index.js"
+      },
+      "./effects": {
+        "types": "./dist/effects.d.ts",
+        "module": "./dist/effects.js",
+        "import": "./dist/effects.js"
       }
     }
   },

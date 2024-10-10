@@ -8,11 +8,10 @@ import {
   isFuzzyMatch,
   substringMatchScore,
 } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
-import { assertExists } from '@blocksuite/global/utils';
+import { assertExists, WithDisposable } from '@blocksuite/global/utils';
 import { autoPlacement, offset } from '@floating-ui/dom';
-import { LitElement, type PropertyValues, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { html, LitElement, nothing, type PropertyValues } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
@@ -46,8 +45,9 @@ type InnerSlashMenuContext = SlashMenuContext & {
   onClickItem: (item: SlashMenuActionItem) => void;
 };
 
-@customElement('affine-slash-menu')
 export class SlashMenu extends WithDisposable(LitElement) {
+  static override styles = styles;
+
   private _handleClickItem = (item: SlashMenuActionItem) => {
     // Need to remove the search string
     // We must to do clean the slash string before we do the action
@@ -57,8 +57,13 @@ export class SlashMenu extends WithDisposable(LitElement) {
       this.context.model,
       this.triggerKey + (this._query || '')
     );
-    item.action(this.context)?.catch(console.error);
-    this.abortController.abort();
+    this.inlineEditor
+      .waitForUpdate()
+      .then(() => {
+        item.action(this.context)?.catch(console.error);
+        this.abortController.abort();
+      })
+      .catch(console.error);
   };
 
   private _initItemPathMap = () => {
@@ -136,21 +141,23 @@ export class SlashMenu extends WithDisposable(LitElement) {
     this._queryState = this._filteredItems.length === 0 ? 'no_result' : 'on';
   };
 
-  static override styles = styles;
-
   updatePosition = (position: { x: string; y: string; height: number }) => {
     this._position = position;
   };
+
+  private get _query() {
+    return getQuery(this.inlineEditor, this._startRange);
+  }
+
+  get host() {
+    return this.context.rootComponent.host;
+  }
 
   constructor(
     private inlineEditor: AffineInlineEditor,
     private abortController = new AbortController()
   ) {
     super();
-  }
-
-  private get _query() {
-    return getQuery(this.inlineEditor, this._startRange);
   }
 
   override connectedCallback() {
@@ -188,7 +195,6 @@ export class SlashMenu extends WithDisposable(LitElement) {
     createKeydownObserver({
       target: inlineEditor.eventSource,
       signal: this.abortController.signal,
-      inlineEditor: this.inlineEditor,
       interceptor: (event, next) => {
         const { key, isComposing, code } = event;
         if (key === this.triggerKey) {
@@ -215,9 +221,19 @@ export class SlashMenu extends WithDisposable(LitElement) {
 
         next();
       },
-      onInput: () => this._updateFilteredItems(),
+      onInput: isComposition => {
+        if (isComposition) {
+          this._updateFilteredItems();
+        } else {
+          this.inlineEditor.slots.renderComplete.once(
+            this._updateFilteredItems
+          );
+        }
+      },
       onPaste: () => {
-        setTimeout(() => this._updateFilteredItems(), 20);
+        setTimeout(() => {
+          this._updateFilteredItems();
+        }, 50);
       },
       onDelete: () => {
         const curRange = this.inlineEditor.getInlineRange();
@@ -227,7 +243,7 @@ export class SlashMenu extends WithDisposable(LitElement) {
         if (curRange.index < this._startRange.index) {
           this.abortController.abort();
         }
-        this._updateFilteredItems();
+        this.inlineEditor.slots.renderComplete.once(this._updateFilteredItems);
       },
       onAbort: () => this.abortController.abort(),
     });
@@ -261,10 +277,6 @@ export class SlashMenu extends WithDisposable(LitElement) {
       </inner-slash-menu>`;
   }
 
-  get host() {
-    return this.context.rootComponent.host;
-  }
-
   @state()
   private accessor _filteredItems: (SlashMenuActionItem | SlashSubMenu)[] = [];
 
@@ -288,8 +300,9 @@ export class SlashMenu extends WithDisposable(LitElement) {
   accessor triggerKey!: string;
 }
 
-@customElement('inner-slash-menu')
 export class InnerSlashMenu extends WithDisposable(LitElement) {
+  static override styles = styles;
+
   private _closeSubMenu = () => {
     this._subMenuAbortController?.abort();
     this._subMenuAbortController = null;
@@ -423,8 +436,6 @@ export class InnerSlashMenu extends WithDisposable(LitElement) {
   };
 
   private _subMenuAbortController: AbortController | null = null;
-
-  static override styles = styles;
 
   private _scrollToItem(item: SlashMenuStaticItem) {
     const shadowRoot = this.shadowRoot;

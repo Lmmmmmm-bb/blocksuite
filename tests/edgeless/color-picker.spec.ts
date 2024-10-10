@@ -1,9 +1,9 @@
 import { parseStringToRgba } from '@blocks/root-block/edgeless/components/color-picker/utils.js';
-import { type Locator, type Page, expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { dragBetweenCoords } from 'utils/actions/drag.js';
 import {
-  Shape,
   addBasicShapeElement,
+  Shape,
   switchEditorMode,
   triggerComponentToolbarAction,
 } from 'utils/actions/edgeless.js';
@@ -309,6 +309,18 @@ test.describe('basic functions', () => {
     await expect(alphaInput).toHaveValue('100');
 
     await alphaInput.fill('-1');
+    await expect(alphaInput).toHaveValue('1');
+
+    await alphaInput.pressSequentially('--1');
+    await expect(alphaInput).toHaveValue('1');
+
+    await alphaInput.pressSequentially('++1');
+    await expect(alphaInput).toHaveValue('1');
+
+    await alphaInput.pressSequentially('-+1');
+    await expect(alphaInput).toHaveValue('1');
+
+    await alphaInput.pressSequentially('+-1');
     await expect(alphaInput).toHaveValue('1');
 
     await alphaInput.fill('23');

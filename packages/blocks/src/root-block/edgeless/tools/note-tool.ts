@@ -1,13 +1,14 @@
 import type { PointerEventState } from '@blocksuite/block-std';
 
-import { Point, noop } from '@blocksuite/global/utils';
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
+import { noop, Point } from '@blocksuite/global/utils';
 
 import type { SelectionArea } from '../services/tools-manager.js';
 import type { EdgelessTool } from '../types.js';
 
 import {
-  type NoteChildrenFlavour,
   hasClassNameInList,
+  type NoteChildrenFlavour,
 } from '../../../_common/utils/index.js';
 import {
   EXCLUDING_MOUSE_OUT_CLASS_LIST,
@@ -26,11 +27,11 @@ export type NoteTool = {
 };
 
 export class NoteToolController extends EdgelessToolController<NoteTool> {
-  protected override _draggingArea: SelectionArea | null = null;
-
   private _draggingNoteOverlay: DraggingNoteOverlay | null = null;
 
   private _noteOverlay: NoteOverlay | null = null;
+
+  protected override _draggingArea: SelectionArea | null = null;
 
   readonly tool = {
     type: 'affine:note',
@@ -105,7 +106,7 @@ export class NoteToolController extends EdgelessToolController<NoteTool> {
     if (newTool.type !== 'affine:note') return;
 
     const attributes =
-      this._edgeless.service.editPropsStore.getLastProps('affine:note');
+      this._edgeless.std.get(EditPropsStore).lastProps$.value['affine:note'];
     const background = attributes.background;
     this._noteOverlay = new NoteOverlay(this._edgeless, background);
     this._noteOverlay.text = newTool.tip;
@@ -179,7 +180,7 @@ export class NoteToolController extends EdgelessToolController<NoteTool> {
     this._clearOverlay();
 
     const attributes =
-      this._edgeless.service.editPropsStore.getLastProps('affine:note');
+      this._edgeless.std.get(EditPropsStore).lastProps$.value['affine:note'];
     const background = attributes.background;
     this._draggingNoteOverlay = new DraggingNoteOverlay(
       this._edgeless,

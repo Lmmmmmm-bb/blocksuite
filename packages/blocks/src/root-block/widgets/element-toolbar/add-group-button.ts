@@ -1,26 +1,24 @@
 import { GroupIcon } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-
-import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
-
 import {
   GroupElementModel,
   MindmapElementModel,
-} from '../../../surface-block/index.js';
+} from '@blocksuite/affine-model';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 
-@customElement('edgeless-add-group-button')
+import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
+
 export class EdgelessAddGroupButton extends WithDisposable(LitElement) {
-  private _createGroup = () => {
-    this.edgeless.service.createGroupFromSelected();
-  };
-
   static override styles = css`
     .label {
       padding-left: 4px;
     }
   `;
+
+  private _createGroup = () => {
+    this.edgeless.service.createGroupFromSelected();
+  };
 
   protected override render() {
     return html`

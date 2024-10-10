@@ -1,42 +1,42 @@
 import type { AffineTextAttributes } from '@blocksuite/affine-components/rich-text';
 import type { DeltaInsert } from '@blocksuite/inline/types';
-import type {
-  FromBlockSnapshotPayload,
-  FromBlockSnapshotResult,
-  FromDocSnapshotPayload,
-  FromDocSnapshotResult,
-  FromSliceSnapshotPayload,
-  FromSliceSnapshotResult,
-  ToBlockSnapshotPayload,
-  ToDocSnapshotPayload,
-} from '@blocksuite/store';
 import type { Heading, Root, RootContentMap, TableRow } from 'mdast';
 
 import {
   type Column,
+  DEFAULT_NOTE_BACKGROUND_COLOR,
   NoteDisplayMode,
   type SerializedCells,
 } from '@blocksuite/affine-model';
 import { getFilenameFromContentDisposition } from '@blocksuite/affine-shared/utils';
 import { assertExists, sha } from '@blocksuite/global/utils';
 import {
-  ASTWalker,
   type AssetsManager,
+  ASTWalker,
   BaseAdapter,
   type BlockSnapshot,
   BlockSnapshotSchema,
   type DocSnapshot,
-  type SliceSnapshot,
+  type FromBlockSnapshotPayload,
+  type FromBlockSnapshotResult,
+  type FromDocSnapshotPayload,
+  type FromDocSnapshotResult,
+  type FromSliceSnapshotPayload,
+  type FromSliceSnapshotResult,
   getAssetName,
   nanoid,
+  type SliceSnapshot,
+  type ToBlockSnapshotPayload,
+  type ToDocSnapshotPayload,
 } from '@blocksuite/store';
 import { format } from 'date-fns/format';
+import remarkMath from 'remark-math';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
 
 import { remarkGfm } from './gfm.js';
-import { createText, fetchImage, fetchable, isNullish } from './utils.js';
+import { createText, fetchable, fetchImage, isNullish } from './utils.js';
 
 export type Markdown = string;
 
@@ -389,6 +389,23 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
             })
             .closeNode();
           context.skipAllChildren();
+          break;
+        }
+        case 'math': {
+          context
+            .openNode(
+              {
+                type: 'block',
+                id: nanoid(),
+                flavour: 'affine:latex',
+                props: {
+                  latex: o.node.value as string,
+                },
+                children: [],
+              },
+              'children'
+            )
+            .closeNode();
           break;
         }
       }
@@ -822,6 +839,17 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
             .closeNode();
           break;
         }
+        case 'affine:latex': {
+          context
+            .openNode(
+              {
+                type: 'math',
+                value: o.node.props.latex as string,
+              },
+              'children'
+            )
+            .closeNode();
+        }
       }
     });
     walker.setLeave((o, context) => {
@@ -879,6 +907,7 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
       .use(remarkStringify, {
         resourceLink: true,
       })
+      .use(remarkMath)
       .stringify(ast)
       .replace(/&#x20;\n/g, ' \n');
   }
@@ -946,15 +975,25 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
           };
         }
       }
+      if (delta.attributes?.latex) {
+        mdast = {
+          type: 'inlineMath',
+          value: delta.attributes.latex as string,
+        };
+      }
       return mdast;
     });
   }
 
   private _markdownToAst(markdown: Markdown) {
-    return unified().use(remarkParse).use(remarkGfm).parse(markdown);
+    return unified()
+      .use(remarkParse)
+      .use(remarkGfm)
+      .use(remarkMath)
+      .parse(markdown);
   }
 
-  private _mdastToDelta(ast: MarkdownAST): DeltaInsert[] {
+  private _mdastToDelta(ast: MarkdownAST): DeltaInsert<AffineTextAttributes>[] {
     switch (ast.type) {
       case 'text': {
         return [{ insert: ast.value }];
@@ -996,6 +1035,9 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
       }
       case 'list': {
         return [];
+      }
+      case 'inlineMath': {
+        return [{ insert: ' ', attributes: { latex: ast.value } }];
       }
     }
     return 'children' in ast
@@ -1075,7 +1117,7 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1099,7 +1141,7 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1158,7 +1200,7 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
         if (line.trimStart().startsWith('-')) {
           return line;
         }
-        const trimmedLine = line.trimStart();
+        let trimmedLine = line.trimStart();
         if (!codeFence && trimmedLine.startsWith('```')) {
           codeFence = trimmedLine.substring(
             0,
@@ -1189,6 +1231,25 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
         if (codeFence) {
           return line;
         }
+
+        trimmedLine = trimmedLine.trimEnd();
+        if (!trimmedLine.startsWith('<') && !trimmedLine.endsWith('>')) {
+          // check if it is a url link and wrap it with the angle brackets
+          // sometimes the url includes emphasis `_` that will break URL parsing
+          //
+          // eg. /MuawcBMT1Mzvoar09-_66?mode=page&blockIds=rL2_GXbtLU2SsJVfCSmh_
+          // https://www.markdownguide.org/basic-syntax/#urls-and-email-addresses
+          try {
+            const valid =
+              URL.canParse?.(trimmedLine) ?? Boolean(new URL(trimmedLine));
+            if (valid) {
+              return `<${trimmedLine}>`;
+            }
+          } catch (err) {
+            console.log(err);
+          }
+        }
+
         return line.replace(/^ /, '&#x20;');
       })
       .join('\n');
@@ -1199,7 +1260,7 @@ export class MarkdownAdapter extends BaseAdapter<Markdown> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,

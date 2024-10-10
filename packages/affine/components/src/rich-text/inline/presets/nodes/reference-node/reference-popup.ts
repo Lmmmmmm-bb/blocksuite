@@ -1,21 +1,18 @@
 import type { ReferenceInfo } from '@blocksuite/affine-model';
-import type { BlockComponent } from '@blocksuite/block-std';
 import type { InlineRange } from '@blocksuite/inline';
 
-import { BLOCK_ID_ATTR } from '@blocksuite/affine-shared/consts';
 import { isInsideBlockByFlavour } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
-import { assertExists } from '@blocksuite/global/utils';
+import { BLOCK_ID_ATTR, type BlockComponent } from '@blocksuite/block-std';
+import { assertExists, WithDisposable } from '@blocksuite/global/utils';
 import { computePosition, inline, offset, shift } from '@floating-ui/dom';
-import { effect } from '@lit-labs/preact-signals';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { effect } from '@preact/signals-core';
+import { html, LitElement, nothing } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { join } from 'lit/directives/join.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { AffineInlineEditor } from '../../affine-inline-specs.js';
-import type { RefNodeSlots } from './types.js';
 
 import {
   CenterPeekIcon,
@@ -31,11 +28,59 @@ import {
   renderActions,
   renderToolbarSeparator,
 } from '../../../../../toolbar/index.js';
+import { RefNodeSlotsProvider } from '../../../../extension/index.js';
 import { styles } from './styles.js';
 
-@customElement('reference-popup')
 export class ReferencePopup extends WithDisposable(LitElement) {
   static override styles = styles;
+
+  get _embedViewButtonDisabled() {
+    if (
+      this.block.doc.readonly ||
+      isInsideBlockByFlavour(
+        this.block.doc,
+        this.block.model,
+        'affine:edgeless-text'
+      )
+    ) {
+      return true;
+    }
+    return (
+      !!this.block.closest('affine-embed-synced-doc-block') ||
+      this.referenceDocId === this.doc.id
+    );
+  }
+
+  get _openButtonDisabled() {
+    return this.referenceDocId === this.doc.id;
+  }
+
+  get block() {
+    const block = this.inlineEditor.rootElement.closest<BlockComponent>(
+      `[${BLOCK_ID_ATTR}]`
+    );
+    assertExists(block);
+    return block;
+  }
+
+  get doc() {
+    const doc = this.block.doc;
+    assertExists(doc);
+    return doc;
+  }
+
+  get referenceDocId() {
+    const docId = this.inlineEditor.getFormat(this.targetInlineRange).reference
+      ?.pageId;
+    assertExists(docId);
+    return docId;
+  }
+
+  get std() {
+    const std = this.block.std;
+    assertExists(std);
+    return std;
+  }
 
   private _convertToCardView() {
     const block = this.block;
@@ -96,23 +141,6 @@ export class ReferencePopup extends WithDisposable(LitElement) {
     this.abortController.abort();
   }
 
-  get _embedViewButtonDisabled() {
-    if (
-      this.block.doc.readonly ||
-      isInsideBlockByFlavour(
-        this.block.doc,
-        this.block.model,
-        'affine:edgeless-text'
-      )
-    ) {
-      return true;
-    }
-    return (
-      !!this.block.closest('affine-embed-synced-doc-block') ||
-      this.referenceDocId === this.doc.id
-    );
-  }
-
   private _moreActions() {
     return renderActions([
       [
@@ -127,23 +155,10 @@ export class ReferencePopup extends WithDisposable(LitElement) {
     ]);
   }
 
-  get _openButtonDisabled() {
-    return this.referenceDocId === this.doc.id;
-  }
-
   private _openDoc() {
-    const pageId = this.referenceDocId;
-    const block = this.block;
-    if (pageId === block.doc.id) return;
-    const rootId = block.doc.root?.id;
-    if (!rootId) return;
-
-    const rootComponent = this.std.view.getBlock(rootId) as BlockComponent & {
-      slots: RefNodeSlots;
-    };
-    if (!rootComponent) return;
-
-    rootComponent.slots.docLinkClicked.emit(this.referenceInfo);
+    this.std
+      .getOptional(RefNodeSlotsProvider)
+      ?.docLinkClicked.emit(this.referenceInfo);
   }
 
   private _openMenuButton() {
@@ -355,33 +370,6 @@ export class ReferencePopup extends WithDisposable(LitElement) {
       .catch(console.error);
   }
 
-  get block() {
-    const block = this.inlineEditor.rootElement.closest<BlockComponent>(
-      `[${BLOCK_ID_ATTR}]`
-    );
-    assertExists(block);
-    return block;
-  }
-
-  get doc() {
-    const doc = this.block.doc;
-    assertExists(doc);
-    return doc;
-  }
-
-  get referenceDocId() {
-    const docId = this.inlineEditor.getFormat(this.targetInlineRange).reference
-      ?.pageId;
-    assertExists(docId);
-    return docId;
-  }
-
-  get std() {
-    const std = this.block.std;
-    assertExists(std);
-    return std;
-  }
-
   @property({ attribute: false })
   accessor abortController!: AbortController;
 
@@ -405,12 +393,6 @@ export class ReferencePopup extends WithDisposable(LitElement) {
 
   @property({ attribute: false })
   accessor targetInlineRange!: InlineRange;
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'reference-popup': ReferencePopup;
-  }
 }
 
 export function toggleReferencePopup(

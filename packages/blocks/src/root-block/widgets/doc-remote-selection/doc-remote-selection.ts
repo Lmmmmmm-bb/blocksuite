@@ -8,9 +8,8 @@ import {
 } from '@blocksuite/block-std';
 import { WidgetComponent } from '@blocksuite/block-std';
 import { assertExists } from '@blocksuite/global/utils';
-import { computed } from '@lit-labs/preact-signals';
+import { computed } from '@preact/signals-core';
 import { css, html, nothing } from 'lit';
-import { customElement } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { DocRemoteSelectionConfig } from './config.js';
@@ -29,8 +28,14 @@ export interface SelectionRect {
 export const AFFINE_DOC_REMOTE_SELECTION_WIDGET =
   'affine-doc-remote-selection-widget';
 
-@customElement(AFFINE_DOC_REMOTE_SELECTION_WIDGET)
 export class AffineDocRemoteSelectionWidget extends WidgetComponent {
+  // avoid being unable to select text by mouse click or drag
+  static override styles = css`
+    :host {
+      pointer-events: none;
+    }
+  `;
+
   private _abortController = new AbortController();
 
   private _remoteColorManager: RemoteColorManager | null = null;
@@ -51,13 +56,6 @@ export class AffineDocRemoteSelectionWidget extends WidgetComponent {
   private _resizeObserver: ResizeObserver = new ResizeObserver(() => {
     this.requestUpdate();
   });
-
-  // avoid being unable to select text by mouse click or drag
-  static override styles = css`
-    :host {
-      pointer-events: none;
-    }
-  `;
 
   private get _config(): DocRemoteSelectionConfig {
     const config =
@@ -86,6 +84,10 @@ export class AffineDocRemoteSelectionWidget extends WidgetComponent {
 
   private get _containerRect() {
     return this.offsetParent?.getBoundingClientRect();
+  }
+
+  private get _selectionManager() {
+    return this.host.selection;
   }
 
   private _getCursorRect(selections: BaseSelection[]): SelectionRect | null {
@@ -235,10 +237,6 @@ export class AffineDocRemoteSelectionWidget extends WidgetComponent {
     return [];
   }
 
-  private get _selectionManager() {
-    return this.host.selection;
-  }
-
   override connectedCallback() {
     super.connectedCallback();
 
@@ -250,7 +248,7 @@ export class AffineDocRemoteSelectionWidget extends WidgetComponent {
       this.requestUpdate();
     });
 
-    this._remoteColorManager = new RemoteColorManager(this.host);
+    this._remoteColorManager = new RemoteColorManager(this.std);
   }
 
   override disconnectedCallback() {

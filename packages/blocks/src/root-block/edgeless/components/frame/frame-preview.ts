@@ -1,24 +1,23 @@
 import type { FrameBlockModel } from '@blocksuite/affine-model';
 
 import { BlockServiceWatcher, BlockStdScope } from '@blocksuite/block-std';
+import { type EditorHost, ShadowlessElement } from '@blocksuite/block-std';
 import {
-  type EditorHost,
-  ShadowlessElement,
+  Bound,
+  debounce,
+  deserializeXYWH,
+  DisposableGroup,
   WithDisposable,
-} from '@blocksuite/block-std';
-import { DisposableGroup, deserializeXYWH } from '@blocksuite/global/utils';
-import { Bound } from '@blocksuite/global/utils';
+} from '@blocksuite/global/utils';
 import { BlockViewType, type Doc, type Query } from '@blocksuite/store';
-import { css, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import type { EdgelessRootBlockComponent } from '../../edgeless-root-block.js';
 import type { EdgelessRootPreviewBlockComponent } from '../../edgeless-root-preview-block.js';
 import type { EdgelessRootService } from '../../edgeless-root-service.js';
 
 import { SpecProvider } from '../../../../_specs/index.js';
-import '../../../../surface-ref-block/surface-ref-portal.js';
 
 const DEFAULT_PREVIEW_CONTAINER_WIDTH = 280;
 const DEFAULT_PREVIEW_CONTAINER_HEIGHT = 166;
@@ -57,8 +56,9 @@ const styles = css`
   }
 `;
 
-@customElement('frame-preview')
 export class FramePreview extends WithDisposable(ShadowlessElement) {
+  static override styles = styles;
+
   private _clearFrameDisposables = () => {
     this._frameDisposables?.dispose();
     this._frameDisposables = null;
@@ -76,7 +76,11 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
 
   private _frameDisposables: DisposableGroup | null = null;
 
-  private _getViewportWH = () => {
+  private _previewDoc: Doc | null = null;
+
+  private _previewSpec = SpecProvider.getInstance().getSpec('edgeless:preview');
+
+  private _updateFrameViewportWH = () => {
     const [, , w, h] = deserializeXYWH(this.frame.xywh);
 
     let scale = 1;
@@ -86,25 +90,26 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
       scale = Math.min(this.surfaceWidth / w, this.surfaceHeight / h);
     }
 
-    return {
+    this.frameViewportWH = {
       width: w * scale,
       height: h * scale,
     };
   };
 
-  private _previewDoc: Doc | null = null;
-
-  private _previewSpec = SpecProvider.getInstance().getSpec('edgeless:preview');
-
-  static override styles = styles;
+  get _originalDoc() {
+    return this.frame.doc;
+  }
 
   private _initPreviewDoc() {
-    this._previewDoc = this.doc.collection.getDoc(this.doc.id, {
-      query: this._docFilter,
-      readonly: true,
-    });
+    this._previewDoc = this._originalDoc.collection.getDoc(
+      this._originalDoc.id,
+      {
+        query: this._docFilter,
+        readonly: true,
+      }
+    );
     this.disposables.add(() => {
-      this.doc.blockCollection.clearQuery(this._docFilter);
+      this._originalDoc.blockCollection.clearQuery(this._docFilter);
     });
   }
 
@@ -146,7 +151,7 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
 
   private _renderSurfaceContent() {
     if (!this._previewDoc || !this.frame) return nothing;
-    const { width, height } = this._getViewportWH();
+    const { width, height } = this.frameViewportWH;
 
     const _previewSpec = this._previewSpec.value;
     return html`<div
@@ -175,9 +180,7 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
     this._clearFrameDisposables();
     this._frameDisposables = new DisposableGroup();
     this._frameDisposables.add(
-      frame.propsUpdated.on(() => {
-        this._refreshViewport();
-      })
+      frame.propsUpdated.on(debounce(this._updateFrameViewportWH, 10))
     );
   }
 
@@ -185,6 +188,8 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
     super.connectedCallback();
     this._initSpec();
     this._initPreviewDoc();
+    this._updateFrameViewportWH();
+    this._setFrameDisposables(this.frame);
   }
 
   override disconnectedCallback() {
@@ -192,31 +197,23 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
     this._clearFrameDisposables();
   }
 
-  override firstUpdated() {
-    this._refreshViewport();
-    this._setFrameDisposables(this.frame);
-  }
-
   override render() {
-    const { frame, host } = this;
-    const noContent = !frame || !frame.xywh || !host;
+    const { frame } = this;
+    const noContent = !frame || !frame.xywh;
 
     return html`<div class="frame-preview-container">
       ${noContent ? nothing : this._renderSurfaceContent()}
     </div>`;
   }
 
-  override willUpdate(_changedProperties: Map<PropertyKey, unknown>): void {
+  override updated(_changedProperties: PropertyValues) {
     if (_changedProperties.has('frame')) {
+      this._setFrameDisposables(this.frame);
+    }
+    if (_changedProperties.has('frameViewportWH')) {
       this._refreshViewport();
     }
   }
-
-  @property({ attribute: false })
-  accessor doc!: Doc;
-
-  @property({ attribute: false })
-  accessor edgeless: EdgelessRootBlockComponent | null = null;
 
   @state()
   accessor fillScreen = false;
@@ -224,8 +221,11 @@ export class FramePreview extends WithDisposable(ShadowlessElement) {
   @property({ attribute: false })
   accessor frame!: FrameBlockModel;
 
-  @property({ attribute: false })
-  accessor host!: EditorHost;
+  @state()
+  accessor frameViewportWH = {
+    width: 0,
+    height: 0,
+  };
 
   @query('editor-host')
   accessor previewEditor: EditorHost | null = null;

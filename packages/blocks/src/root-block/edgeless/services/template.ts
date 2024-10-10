@@ -1,23 +1,25 @@
-import type { BlockModel, Y } from '@blocksuite/store';
+import type {
+  SurfaceBlockModel,
+  SurfaceBlockTransformer,
+} from '@blocksuite/affine-block-surface';
+import type { ConnectorElementModel } from '@blocksuite/affine-model';
 
 import {
-  Bound,
-  Slot,
   assertExists,
   assertType,
+  Bound,
   getCommonBound,
+  Slot,
 } from '@blocksuite/global/utils';
 import {
+  type BlockModel,
   type BlockSnapshot,
   type DocSnapshot,
   DocSnapshotSchema,
   Job,
   type SnapshotReturn,
+  type Y,
 } from '@blocksuite/store';
-
-import type { ConnectorElementModel } from '../../../surface-block/index.js';
-import type { SurfaceBlockModel } from '../../../surface-block/surface-model.js';
-import type { SurfaceBlockTransformer } from '../../../surface-block/surface-transformer.js';
 
 /**
  * Those block contains other block's id
@@ -64,9 +66,9 @@ export type TemplateJobConfig = {
 };
 
 export class TemplateJob {
-  private _template: DocSnapshot | null = null;
-
   static middlewares: ((job: TemplateJob) => void)[] = [];
+
+  private _template: DocSnapshot | null = null;
 
   job: Job;
 

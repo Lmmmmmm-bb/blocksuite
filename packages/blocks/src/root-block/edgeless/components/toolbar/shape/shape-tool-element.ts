@@ -1,23 +1,23 @@
-import type { ShapeStyle, ShapeType } from '@blocksuite/affine-model';
-
-import { WithDisposable } from '@blocksuite/block-std';
-import { Bound } from '@blocksuite/global/utils';
-import { sleep } from '@blocksuite/global/utils';
+import { CanvasElementType } from '@blocksuite/affine-block-surface';
 import {
+  getShapeRadius,
+  getShapeType,
+  type ShapeName,
+  type ShapeStyle,
+} from '@blocksuite/affine-model';
+import { Bound, sleep, WithDisposable } from '@blocksuite/global/utils';
+import {
+  css,
+  html,
   LitElement,
   type PropertyValues,
   type TemplateResult,
-  css,
-  html,
 } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { property, query, state } from 'lit/decorators.js';
 
 import type { EdgelessRootBlockComponent } from '../../../edgeless-root-block.js';
 
-import { CanvasElementType } from '../../../../../surface-block/index.js';
 import { ShapeToolController } from '../../../tools/shape-tool.js';
-
-export type ShapeName = ShapeType | 'roundedRect';
 
 export interface Shape {
   name: ShapeName;
@@ -39,8 +39,35 @@ type TransformMap = Record<
   }
 >;
 
-@customElement('edgeless-shape-tool-element')
 export class EdgelessShapeToolElement extends WithDisposable(LitElement) {
+  static override styles = css`
+    .shape {
+      --x: 0px;
+      --y: 0px;
+      --offset-x: 0px;
+      --offset-y: 0px;
+      --scale: 1;
+      transform: translateX(calc(var(--offset-x) + var(--x)))
+        translateY(calc(var(--y) + var(--offset-y))) scale(var(--scale));
+      height: 60px;
+      width: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      transition: all 0.5s cubic-bezier(0, -0.01, 0.01, 1.01);
+    }
+    .shape.dragging {
+      transition: none;
+    }
+    .shape svg {
+      height: 100%;
+      filter: drop-shadow(0px 2px 8px rgba(0, 0, 0, 0.15));
+    }
+  `;
+
   private _addShape = (coord: Coord, padding: Coord) => {
     const width = 100;
     const height = 100;
@@ -53,9 +80,9 @@ export class EdgelessShapeToolElement extends WithDisposable(LitElement) {
     );
     const xywh = new Bound(modelX, modelY, width, height).serialize();
     this.edgeless.service.addElement(CanvasElementType.SHAPE, {
-      shapeType: this.shape.name === 'roundedRect' ? 'rect' : this.shape.name,
+      shapeType: getShapeType(this.shape.name),
       xywh: xywh,
-      radius: this.radius,
+      radius: getShapeRadius(this.shape.name),
     });
   };
 
@@ -176,34 +203,6 @@ export class EdgelessShapeToolElement extends WithDisposable(LitElement) {
     hidden: { x: 0, y: 120, scale: 0, origin: '50% 50%' },
   };
 
-  static override styles = css`
-    .shape {
-      --x: 0px;
-      --y: 0px;
-      --offset-x: 0px;
-      --offset-y: 0px;
-      --scale: 1;
-      transform: translateX(calc(var(--offset-x) + var(--x)))
-        translateY(calc(var(--y) + var(--offset-y))) scale(var(--scale));
-      height: 60px;
-      width: 60px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      position: absolute;
-      top: 12px;
-      left: 16px;
-      transition: all 0.5s cubic-bezier(0, -0.01, 0.01, 1.01);
-    }
-    .shape.dragging {
-      transition: none;
-    }
-    .shape svg {
-      height: 100%;
-      filter: drop-shadow(0px 2px 8px rgba(0, 0, 0, 0.15));
-    }
-  `;
-
   override connectedCallback() {
     super.connectedCallback();
     this._disposables.addFromEvent(
@@ -301,9 +300,6 @@ export class EdgelessShapeToolElement extends WithDisposable(LitElement) {
 
   @property({ attribute: false })
   accessor order!: number;
-
-  @property({ attribute: false })
-  accessor radius!: number;
 
   @property({ attribute: false })
   accessor shape!: Shape;

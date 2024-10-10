@@ -1,5 +1,6 @@
+import type { BlockSuiteFlags } from '@blocksuite/global/types';
+
 import { AffineSchemas } from '@blocksuite/blocks';
-import { assertExists } from '@blocksuite/global/utils';
 import {
   DocCollection,
   type DocCollectionOptions,
@@ -113,8 +114,13 @@ export async function initDefaultDocCollection(collection: DocCollection) {
         : await new Promise<string>(resolve =>
             collection.slots.docAdded.once(id => resolve(id))
           );
+    if (!firstPageId) {
+      throw new Error('No first page id found');
+    }
     const doc = collection.getDoc(firstPageId);
-    assertExists(doc);
+    if (!doc) {
+      throw new Error(`Failed to get doc ${firstPageId}`);
+    }
     doc.load();
     // wait for data injected from provider
     if (!doc.root) {

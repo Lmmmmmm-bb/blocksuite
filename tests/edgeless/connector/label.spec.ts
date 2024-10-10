@@ -1,9 +1,7 @@
-import { assertExists } from '@global/utils/index.js';
-import { type Page, expect } from '@playwright/test';
+import { assertExists } from '@blocksuite/global/utils';
+import { expect, type Page } from '@playwright/test';
 
 import {
-  SHORT_KEY,
-  Shape,
   addBasicConnectorElement,
   edgelessCommonSetup as commonSetup,
   createConnectorElement,
@@ -11,6 +9,8 @@ import {
   dragBetweenViewCoords,
   locatorComponentToolbar,
   setEdgelessTool,
+  Shape,
+  SHORT_KEY,
   toViewCoord,
   triggerComponentToolbarAction,
   type,
@@ -313,18 +313,21 @@ test.describe('connector label with straight shape', () => {
     await page.mouse.click(105, 200);
 
     await page.keyboard.press('Enter');
+    await waitNextFrame(page);
     await type(page, ' a ');
     await assertEdgelessCanvasText(page, ' a ');
 
     await page.keyboard.press(`${SHORT_KEY}+Enter`);
 
     await page.keyboard.press('Enter');
+    await waitNextFrame(page);
     await type(page, 'b');
     await assertEdgelessCanvasText(page, 'b');
 
     await page.keyboard.press('Escape');
 
     await page.keyboard.press('Enter');
+    await waitNextFrame(page);
     await type(page, 'c');
     await assertEdgelessCanvasText(page, 'c');
   });

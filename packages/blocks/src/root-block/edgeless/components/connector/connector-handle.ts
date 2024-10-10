@@ -1,20 +1,16 @@
-import { WithDisposable } from '@blocksuite/block-std';
-import { Vec } from '@blocksuite/global/utils';
-import { DisposableGroup } from '@blocksuite/global/utils';
-import { LitElement, css, html } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import type { ConnectorElementModel } from '@blocksuite/affine-model';
+
+import { DisposableGroup, Vec, WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import type { ConnectorElementModel } from '../../../../surface-block/index.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless-root-block.js';
 
 const SIZE = 12;
 const HALF_SIZE = SIZE / 2;
 
-@customElement('edgeless-connector-handle')
 export class EdgelessConnectorHandle extends WithDisposable(LitElement) {
-  private _lastZoom = 1;
-
   static override styles = css`
     .line-controller {
       position: absolute;
@@ -40,6 +36,8 @@ export class EdgelessConnectorHandle extends WithDisposable(LitElement) {
     }
   `;
 
+  private _lastZoom = 1;
+
   private _bindEvent() {
     const edgeless = this.edgeless;
 
@@ -52,20 +50,20 @@ export class EdgelessConnectorHandle extends WithDisposable(LitElement) {
       this._capPointerDown(e, 'target');
     });
     this._disposables.add(() => {
-      edgeless.surface.overlays.connector.clear();
+      edgeless.service.connectorOverlay.clear();
     });
   }
 
   private _capPointerDown(e: PointerEvent, connection: 'target' | 'source') {
     const { edgeless, connector, _disposables } = this;
-    const { service, surface } = edgeless;
+    const { service } = edgeless;
     e.stopPropagation();
     _disposables.addFromEvent(document, 'pointermove', e => {
       const point = service.viewport.toModelCoordFromClientCoord([e.x, e.y]);
       const isStartPointer = connection === 'source';
       const otherSideId = connector[isStartPointer ? 'target' : 'source'].id;
 
-      connector[connection] = surface.overlays.connector.renderConnector(
+      connector[connection] = edgeless.service.connectorOverlay.renderConnector(
         point,
         otherSideId ? [otherSideId] : []
       );
@@ -73,7 +71,7 @@ export class EdgelessConnectorHandle extends WithDisposable(LitElement) {
     });
 
     _disposables.addFromEvent(document, 'pointerup', () => {
-      surface.overlays.connector.clear();
+      edgeless.service.overlays.connector.clear();
       edgeless.doc.captureSync();
       _disposables.dispose();
       this._disposables = new DisposableGroup();

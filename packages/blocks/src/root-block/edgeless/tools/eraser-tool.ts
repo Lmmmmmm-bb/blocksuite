@@ -1,18 +1,14 @@
 import type { PointerEventState } from '@blocksuite/block-std';
 import type { IPoint, IVec } from '@blocksuite/global/utils';
 
+import { CommonUtils, Overlay } from '@blocksuite/affine-block-surface';
 import { Bound, noop } from '@blocksuite/global/utils';
 
-import { buildPath } from '../../../_common/utils/index.js';
-import {
-  Overlay,
-  getStroke,
-  getSvgPathFromStroke,
-  linePolygonIntersects,
-} from '../../../surface-block/index.js';
 import { deleteElements } from '../utils/crud.js';
 import { isTopLevelBlock } from '../utils/query.js';
 import { EdgelessToolController } from './edgeless-tool.js';
+
+const { getSvgPathFromStroke, getStroke, linePolygonIntersects } = CommonUtils;
 
 class EraserOverlay extends Overlay {
   d = '';
@@ -32,9 +28,9 @@ type EraserTool = {
 export class EraserToolController extends EdgelessToolController<EraserTool> {
   private _erasables = new Set<BlockSuite.EdgelessModel>();
 
-  private _eraseTargets = new Set<BlockSuite.EdgelessModel>();
-
   private _eraserPoints: IVec[] = [];
+
+  private _eraseTargets = new Set<BlockSuite.EdgelessModel>();
 
   private _loop = () => {
     const now = Date.now();
@@ -103,10 +99,7 @@ export class EraserToolController extends EdgelessToolController<EraserTool> {
   override beforeModeSwitch() {
     this._eraseTargets.forEach(erasable => {
       if (isTopLevelBlock(erasable)) {
-        const ele = this._edgeless.host.view.viewFromPath(
-          'block',
-          buildPath(erasable)
-        );
+        const ele = this._edgeless.host.view.getBlock(erasable.id);
         ele && ((ele as HTMLElement).style.opacity = '1');
       } else {
         erasable.opacity = 1;
@@ -143,10 +136,7 @@ export class EraserToolController extends EdgelessToolController<EraserTool> {
           linePolygonIntersects(this._prevPoint, currentPoint, bound.points)
         ) {
           this._eraseTargets.add(erasable);
-          const ele = this._edgeless.host.view.viewFromPath(
-            'block',
-            buildPath(erasable)
-          );
+          const ele = this._edgeless.host.view.getBlock(erasable.id);
           ele && ((ele as HTMLElement).style.opacity = '0.3');
         }
       } else {

@@ -5,15 +5,14 @@ import {
   ConnectorXWithArrowIcon,
 } from '@blocksuite/affine-components/icons';
 import { ConnectorMode, getConnectorModeName } from '@blocksuite/affine-model';
-import { SignalWatcher, computed } from '@lit-labs/preact-signals';
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
+import { SignalWatcher } from '@blocksuite/global/utils';
+import { computed } from '@preact/signals-core';
+import { css, html, LitElement } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import '../../buttons/toolbar-button.js';
 import { getTooltipWithShortcut } from '../../utils.js';
 import { QuickToolMixin } from '../mixins/quick-tool.mixin.js';
-import './connector-menu.js';
 
 const IcomMap = {
   [ConnectorMode.Straight]: ConnectorLWithArrowIcon,
@@ -21,14 +20,9 @@ const IcomMap = {
   [ConnectorMode.Curve]: ConnectorCWithArrowIcon,
 };
 
-@customElement('edgeless-connector-tool-button')
 export class EdgelessConnectorToolButton extends QuickToolMixin(
   SignalWatcher(LitElement)
 ) {
-  private _mode$ = computed(() => {
-    return this.edgeless.service.editPropsStore.lastProps$.value.connector.mode;
-  });
-
   static override styles = css`
     :host {
       display: flex;
@@ -45,6 +39,11 @@ export class EdgelessConnectorToolButton extends QuickToolMixin(
     }
   `;
 
+  private _mode$ = computed(() => {
+    return this.edgeless.std.get(EditPropsStore).lastProps$.value.connector
+      .mode;
+  });
+
   override type = 'connector' as const;
 
   private _toggleMenu() {
@@ -53,7 +52,7 @@ export class EdgelessConnectorToolButton extends QuickToolMixin(
     const menu = this.createPopper('edgeless-connector-menu', this);
     menu.element.edgeless = this.edgeless;
     menu.element.onChange = (props: Record<string, unknown>) => {
-      this.edgeless.service.editPropsStore.recordLastProps(this.type, props);
+      this.edgeless.std.get(EditPropsStore).recordLastProps('connector', props);
       this.setEdgelessTool({
         type: this.type,
         mode: this._mode$.value,

@@ -1,16 +1,14 @@
 import type { EditorHost } from '@blocksuite/block-std';
 
-import { WithDisposable } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { AIPanelAnswerConfig, CopyConfig } from '../../type.js';
 
 import { filterAIItemGroup } from '../../utils.js';
-import '../finish-tip.js';
 
-@customElement('ai-panel-answer')
 export class AIPanelAnswer extends WithDisposable(LitElement) {
   static override styles = css`
     :host {

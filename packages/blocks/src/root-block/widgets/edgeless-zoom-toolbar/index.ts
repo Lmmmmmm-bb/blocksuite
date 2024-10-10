@@ -2,17 +2,13 @@ import type { RootBlockModel } from '@blocksuite/affine-model';
 
 import { WidgetComponent } from '@blocksuite/block-std';
 import { css, html, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { state } from 'lit/decorators.js';
 
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
-
-import './zoom-bar-toggle-button.js';
-import './zoom-toolbar.js';
 
 export const AFFINE_EDGELESS_ZOOM_TOOLBAR_WIDGET =
   'affine-edgeless-zoom-toolbar-widget';
 
-@customElement(AFFINE_EDGELESS_ZOOM_TOOLBAR_WIDGET)
 export class AffineEdgelessZoomToolbarWidget extends WidgetComponent<
   RootBlockModel,
   EdgelessRootBlockComponent
@@ -41,6 +37,10 @@ export class AffineEdgelessZoomToolbarWidget extends WidgetComponent<
       }
     }
   `;
+
+  get edgeless() {
+    return this.block;
+  }
 
   override firstUpdated() {
     const {
@@ -75,10 +75,6 @@ export class AffineEdgelessZoomToolbarWidget extends WidgetComponent<
         .edgeless=${this.edgeless}
       ></zoom-bar-toggle-button>
     `;
-  }
-
-  get edgeless() {
-    return this.block;
   }
 
   @state()

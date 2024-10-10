@@ -31,11 +31,14 @@ import {
   ShapeStyle,
   ShapeType,
 } from '@blocksuite/affine-model';
+import {
+  EditPropsStore,
+  type LastProps,
+} from '@blocksuite/affine-shared/services';
 import { isControlledKeyboardEvent } from '@blocksuite/affine-shared/utils';
 import { html } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import type { LastProps } from '../../../surface-block/managers/edit-session.js';
 import type { PieMenuContext } from './base.js';
 
 import {
@@ -78,7 +81,7 @@ pie.expandableCommand({
       label: 'Pen Color',
       active: getActiveConnectorStrokeColor,
       onChange: (color: string, { rootComponent }: PieMenuContext) => {
-        rootComponent.service.editPropsStore.recordLastProps('brush', {
+        rootComponent.std.get(EditPropsStore).recordLastProps('brush', {
           color: color as LastProps['brush']['color'],
         });
       },
@@ -217,7 +220,7 @@ pie.colorPicker({
   label: 'Line Color',
   active: getActiveConnectorStrokeColor,
   onChange: (color: string, { rootComponent }: PieMenuContext) => {
-    rootComponent.service.editPropsStore.recordLastProps('connector', {
+    rootComponent.std.get(EditPropsStore).recordLastProps('connector', {
       stroke: color as LastProps['connector']['stroke'],
     });
   },
@@ -264,17 +267,16 @@ shapes.forEach(shape => {
     label: shape.label,
     icon: ({ rootComponent }) => {
       const attributes =
-        rootComponent.service.editPropsStore.getLastProps('shape');
+        rootComponent.std.get(EditPropsStore).lastProps$.value[
+          `shape:${shape.type}`
+        ];
       return shape.icon(attributes.shapeStyle);
     },
 
     action: ({ rootComponent }) => {
       rootComponent.service.tool.setEdgelessTool({
         type: 'shape',
-        shapeType: shape.type,
-      });
-      rootComponent.service.editPropsStore.recordLastProps('shape', {
-        shapeType: shape.type,
+        shapeName: shape.type,
       });
       updateShapeOverlay(rootComponent);
     },
@@ -285,7 +287,9 @@ pie.command({
   label: 'Toggle Style',
   icon: ({ rootComponent }) => {
     const { shapeStyle } =
-      rootComponent.service.editPropsStore.getLastProps('shape');
+      rootComponent.std.get(EditPropsStore).lastProps$.value[
+        'shape:roundedRect'
+      ];
     return shapeStyle === ShapeStyle.General
       ? ScribbledStyleIcon
       : GeneralStyleIcon;
@@ -293,13 +297,15 @@ pie.command({
 
   action: ({ rootComponent }) => {
     const { shapeStyle } =
-      rootComponent.service.editPropsStore.getLastProps('shape');
+      rootComponent.std.get(EditPropsStore).lastProps$.value[
+        'shape:roundedRect'
+      ];
     const toggleType =
       shapeStyle === ShapeStyle.General
         ? ShapeStyle.Scribbled
         : ShapeStyle.General;
 
-    rootComponent.service.editPropsStore.recordLastProps('shape', {
+    rootComponent.std.get(EditPropsStore).recordLastProps('shape:roundedRect', {
       shapeStyle: toggleType,
     });
 
@@ -311,8 +317,8 @@ pie.colorPicker({
   label: 'Fill',
   active: getActiveShapeColor('fill'),
   onChange: (color: string, { rootComponent }: PieMenuContext) => {
-    rootComponent.service.editPropsStore.recordLastProps('shape', {
-      fillColor: color as LastProps['shape']['fillColor'],
+    rootComponent.std.get(EditPropsStore).recordLastProps('shape:roundedRect', {
+      fillColor: color as LastProps['shape:roundedRect']['fillColor'],
     });
     updateShapeOverlay(rootComponent);
   },
@@ -324,8 +330,8 @@ pie.colorPicker({
   hollow: true,
   active: getActiveShapeColor('stroke'),
   onChange: (color: string, { rootComponent }: PieMenuContext) => {
-    rootComponent.service.editPropsStore.recordLastProps('shape', {
-      strokeColor: color as LastProps['shape']['strokeColor'],
+    rootComponent.std.get(EditPropsStore).recordLastProps('shape:roundedRect', {
+      strokeColor: color as LastProps['shape:roundedRect']['strokeColor'],
     });
     updateShapeOverlay(rootComponent);
   },

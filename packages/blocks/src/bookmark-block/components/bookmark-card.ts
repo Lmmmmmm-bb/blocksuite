@@ -1,10 +1,11 @@
 import { WebIcon16 } from '@blocksuite/affine-components/icons';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import { getHostName } from '@blocksuite/affine-shared/utils';
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { OpenInNewIcon } from '@blocksuite/icons/lit';
 import { html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import type { BookmarkBlockComponent } from '../bookmark-block.js';
@@ -12,7 +13,6 @@ import type { BookmarkBlockComponent } from '../bookmark-block.js';
 import { getEmbedCardIcons } from '../../_common/utils/url.js';
 import { styles } from '../styles.js';
 
-@customElement('bookmark-card')
 export class BookmarkCard extends WithDisposable(ShadowlessElement) {
   static override styles = styles;
 

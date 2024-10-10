@@ -3,31 +3,22 @@ import {
   LinkIcon,
   TextIcon,
 } from '@blocksuite/affine-components/icons';
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { SignalWatcher, computed } from '@lit-labs/preact-signals';
-import { LitElement, css, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { SignalWatcher } from '@blocksuite/global/utils';
+import { computed } from '@preact/signals-core';
+import { css, html, LitElement } from 'lit';
+import { state } from 'lit/decorators.js';
 
 import type { NoteTool } from '../../../tools/note-tool.js';
 
 import { getTooltipWithShortcut } from '../../utils.js';
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
 import { toShapeNotToAdapt } from './icon.js';
-import './note-menu.js';
 
-@customElement('edgeless-note-senior-button')
 export class EdgelessNoteSeniorButton extends EdgelessToolbarToolMixin(
   SignalWatcher(LitElement)
 ) {
-  private _noteBg$ = computed(() => {
-    return ThemeObserver.generateColorProperty(
-      this.edgeless.service.editPropsStore.lastProps$.value['affine:note']
-        .background
-    );
-  });
-
-  private _states = ['childFlavour', 'childType', 'tip'] as const;
-
   static override styles = css`
     :host,
     .edgeless-note-button {
@@ -132,6 +123,15 @@ export class EdgelessNoteSeniorButton extends EdgelessToolbarToolMixin(
       --r: 15deg;
     }
   `;
+
+  private _noteBg$ = computed(() => {
+    return ThemeObserver.generateColorProperty(
+      this.edgeless.std.get(EditPropsStore).lastProps$.value['affine:note']
+        .background
+    );
+  });
+
+  private _states = ['childFlavour', 'childType', 'tip'] as const;
 
   override enableActiveBackground = true;
 

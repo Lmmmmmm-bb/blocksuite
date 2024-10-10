@@ -1,18 +1,17 @@
 import type { EmbedOptions } from '@blocksuite/affine-shared/types';
-import type { BlockService } from '@blocksuite/block-std';
-import type { BlockComponent } from '@blocksuite/block-std';
 import type { InlineRange } from '@blocksuite/inline/types';
 
-import { BLOCK_ID_ATTR } from '@blocksuite/affine-shared/consts';
+import { EmbedOptionProvider } from '@blocksuite/affine-shared/services';
 import {
   getHostName,
   isValidUrl,
   normalizeUrl,
 } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
+import { BLOCK_ID_ATTR, type BlockComponent } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { computePosition, inline, offset, shift } from '@floating-ui/dom';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { html, LitElement, nothing } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { choose } from 'lit/directives/choose.js';
 import { join } from 'lit/directives/join.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -37,8 +36,9 @@ import {
 } from '../../../../../../toolbar/index.js';
 import { linkPopupStyle } from './styles.js';
 
-@customElement('link-popup')
 export class LinkPopup extends WithDisposable(LitElement) {
+  static override styles = linkPopupStyle;
+
   private _bodyOverflowStyle = '';
 
   private _createTemplate = () => {
@@ -58,6 +58,7 @@ export class LinkPopup extends WithDisposable(LitElement) {
           type="text"
           spellcheck="false"
           placeholder="Paste or type a link"
+          @paste=${this._updateConfirmBtn}
           @input=${this._updateConfirmBtn}
         />
         ${this._confirmBtnTemplate()}
@@ -127,6 +128,11 @@ export class LinkPopup extends WithDisposable(LitElement) {
   private _embedOptions: EmbedOptions | null = null;
 
   private _openLink = () => {
+    if (this.openLink) {
+      this.openLink();
+      return;
+    }
+
     let link = this.currentLink;
     if (!link) return;
     if (!link.match(/^[a-zA-Z]+:\/\//)) {
@@ -146,15 +152,12 @@ export class LinkPopup extends WithDisposable(LitElement) {
   };
 
   private _viewTemplate = () => {
-    if (!this._rootService) {
-      return nothing;
-    }
-
     if (!this.currentLink) return;
 
-    this._embedOptions = this._rootService.getEmbedBlockOptions(
-      this.currentLink
-    );
+    this._embedOptions =
+      this.std
+        ?.get(EmbedOptionProvider)
+        .getEmbedBlockOptions(this.currentLink) ?? null;
 
     const buttons = [
       html`
@@ -163,6 +166,7 @@ export class LinkPopup extends WithDisposable(LitElement) {
           href=${this.currentLink}
           rel="noopener noreferrer"
           target="_blank"
+          @click=${(e: MouseEvent) => this.openLink?.(e)}
         >
           <span>${getHostName(this.currentLink)}</span>
         </a>
@@ -214,10 +218,55 @@ export class LinkPopup extends WithDisposable(LitElement) {
     `;
   };
 
-  static override styles = linkPopupStyle;
-
   private get _canConvertToEmbedView() {
     return this._embedOptions?.viewType === 'embed';
+  }
+
+  private get _isBookmarkAllowed() {
+    const block = this.block;
+    if (!block) return false;
+    const schema = block.doc.schema;
+    const parent = block.doc.getParent(block.model);
+    if (!parent) return false;
+    const bookmarkSchema = schema.flavourSchemaMap.get('affine:bookmark');
+    if (!bookmarkSchema) return false;
+    const parentSchema = schema.flavourSchemaMap.get(parent.flavour);
+    if (!parentSchema) return false;
+
+    try {
+      schema.validateSchema(bookmarkSchema, parentSchema);
+    } catch {
+      return false;
+    }
+
+    return true;
+  }
+
+  get block() {
+    const block = this.inlineEditor.rootElement.closest<BlockComponent>(
+      `[${BLOCK_ID_ATTR}]`
+    );
+    if (!block) return null;
+    return block;
+  }
+
+  get currentLink() {
+    return this.inlineEditor.getFormat(this.targetInlineRange).link;
+  }
+
+  get currentText() {
+    return this.inlineEditor.yTextString.slice(
+      this.targetInlineRange.index,
+      this.targetInlineRange.index + this.targetInlineRange.length
+    );
+  }
+
+  get host() {
+    return this.block?.host;
+  }
+
+  get std() {
+    return this.block?.std;
   }
 
   private _confirmBtnTemplate() {
@@ -305,26 +354,6 @@ export class LinkPopup extends WithDisposable(LitElement) {
     this.abortController.abort();
   }
 
-  private get _isBookmarkAllowed() {
-    const block = this.block;
-    if (!block) return false;
-    const schema = block.doc.schema;
-    const parent = block.doc.getParent(block.model);
-    if (!parent) return false;
-    const bookmarkSchema = schema.flavourSchemaMap.get('affine:bookmark');
-    if (!bookmarkSchema) return false;
-    const parentSchema = schema.flavourSchemaMap.get(parent.flavour);
-    if (!parentSchema) return false;
-
-    try {
-      schema.validateSchema(bookmarkSchema, parentSchema);
-    } catch {
-      return false;
-    }
-
-    return true;
-  }
-
   private _moreActions() {
     return renderActions([
       [
@@ -407,20 +436,14 @@ export class LinkPopup extends WithDisposable(LitElement) {
     }
   }
 
-  private get _rootService() {
-    return this.std?.getService('affine:page') as
-      | null
-      | (BlockService & {
-          getEmbedBlockOptions(link: string): EmbedOptions;
-        });
-  }
-
   private _updateConfirmBtn() {
     if (!this.confirmButton) {
       return;
     }
     const link = this.linkInput?.value.trim();
-    this.confirmButton.disabled = !(link && isValidUrl(link));
+    const disabled = !(link && isValidUrl(link));
+    this.confirmButton.disabled = disabled;
+    this.confirmButton.active = !disabled;
     this.confirmButton.requestUpdate();
   }
 
@@ -587,33 +610,6 @@ export class LinkPopup extends WithDisposable(LitElement) {
       .catch(console.error);
   }
 
-  get block() {
-    const block = this.inlineEditor.rootElement.closest<BlockComponent>(
-      `[${BLOCK_ID_ATTR}]`
-    );
-    if (!block) return null;
-    return block;
-  }
-
-  get currentLink() {
-    return this.inlineEditor.getFormat(this.targetInlineRange).link;
-  }
-
-  get currentText() {
-    return this.inlineEditor.yTextString.slice(
-      this.targetInlineRange.index,
-      this.targetInlineRange.index + this.targetInlineRange.length
-    );
-  }
-
-  get host() {
-    return this.block?.host;
-  }
-
-  get std() {
-    return this.block?.std;
-  }
-
   @property({ attribute: false })
   accessor abortController!: AbortController;
 
@@ -629,6 +625,9 @@ export class LinkPopup extends WithDisposable(LitElement) {
   @query('.mock-selection-container')
   accessor mockSelectionContainer!: HTMLDivElement;
 
+  @property({ attribute: false })
+  accessor openLink: ((e?: MouseEvent) => void) | null = null;
+
   @query('.affine-link-popover-container')
   accessor popupContainer!: HTMLDivElement;
 
@@ -640,10 +639,4 @@ export class LinkPopup extends WithDisposable(LitElement) {
 
   @property()
   accessor type: 'create' | 'edit' | 'view' = 'create';
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'link-popup': LinkPopup;
-  }
 }

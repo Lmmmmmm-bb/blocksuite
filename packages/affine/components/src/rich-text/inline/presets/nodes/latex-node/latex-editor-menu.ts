@@ -1,29 +1,26 @@
-import type { BaseTextAttributes } from '@blocksuite/inline/index';
 import type { Y } from '@blocksuite/store';
 
 import { ColorScheme } from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
-import { noop } from '@blocksuite/global/utils';
+import { type BlockStdScope, ShadowlessElement } from '@blocksuite/block-std';
+import { noop, SignalWatcher, WithDisposable } from '@blocksuite/global/utils';
 import { DoneIcon } from '@blocksuite/icons/lit';
 import { DocCollection } from '@blocksuite/store';
-import {
-  type Signal,
-  SignalWatcher,
-  effect,
-  signal,
-} from '@lit-labs/preact-signals';
+import { effect, type Signal, signal } from '@preact/signals-core';
 import { cssVar } from '@toeverything/theme';
 import { css, html, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { type ThemedToken, codeToTokensBase } from 'shiki';
-import { z } from 'zod';
+import { property } from 'lit/decorators.js';
+import { codeToTokensBase, type ThemedToken } from 'shiki';
 
-import type { AffineLatexNode } from './latex-node.js';
+import { InlineManagerExtension } from '../../../../extension/index.js';
+import { LatexEditorUnitSpecExtension } from '../../affine-inline-specs.js';
 
-import { InlineManager } from '../../../inline-manager.js';
+export const LatexEditorInlineManagerExtension = InlineManagerExtension({
+  id: 'latex-inline-editor',
+  enableMarkdown: false,
+  specs: [LatexEditorUnitSpecExtension.identifier],
+});
 
-@customElement('latex-editor-menu')
 export class LatexEditorMenu extends SignalWatcher(
   WithDisposable(ShadowlessElement)
 ) {
@@ -57,6 +54,7 @@ export class LatexEditorMenu extends SignalWatcher(
       box-shadow: 0px 0px 0px 2px rgba(30, 150, 235, 0.3);
 
       font-family: ${unsafeCSS(cssVar('fontCodeFamily'))};
+      border: 1px solid transparent;
     }
     .latex-editor:focus-within {
       border: 1px solid ${unsafeCSS(cssVar('blue700'))};
@@ -87,13 +85,15 @@ export class LatexEditorMenu extends SignalWatcher(
 
   highlightTokens$: Signal<ThemedToken[][]> = signal([]);
 
-  readonly inlineManager = new InlineManager<
-    BaseTextAttributes & {
-      'latex-editor-unit'?: null;
-    }
-  >();
-
   yText!: Y.Text;
+
+  get inlineManager() {
+    return this.std.get(LatexEditorInlineManagerExtension.identifier);
+  }
+
+  get richText() {
+    return this.querySelector('rich-text');
+  }
 
   private _updateHighlightTokens(text: string) {
     const theme =
@@ -132,7 +132,7 @@ export class LatexEditorMenu extends SignalWatcher(
     this.disposables.add(
       effect(() => {
         noop(this.highlightTokens$.value);
-        this.richText?.inlineEditor?.requestUpdate();
+        this.richText?.inlineEditor?.render();
       })
     );
 
@@ -142,17 +142,6 @@ export class LatexEditorMenu extends SignalWatcher(
       })
     );
 
-    this.inlineManager.registerSpecs([
-      {
-        name: 'latex-editor-unit',
-        schema: z.undefined(),
-        match: () => true,
-        renderer: ({ delta }) => {
-          return html`<latex-editor-unit .delta=${delta}></latex-editor-unit>`;
-        },
-      },
-    ]);
-
     this.disposables.addFromEvent(this, 'keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -161,10 +150,15 @@ export class LatexEditorMenu extends SignalWatcher(
       }
     });
 
-    setTimeout(() => {
-      this.richText?.inlineEditorContainer.focus();
-      this.richText?.inlineEditor?.focusEnd();
-    });
+    this.updateComplete
+      .then(async () => {
+        await this.richText?.updateComplete;
+
+        setTimeout(() => {
+          this.richText?.inlineEditor?.focusEnd();
+        });
+      })
+      .catch(console.error);
   }
 
   override render() {
@@ -177,28 +171,23 @@ export class LatexEditorMenu extends SignalWatcher(
         ></rich-text>
       </div>
       <div class="latex-editor-confirm">
-        ${DoneIcon({
-          width: '24',
-          height: '24',
-        })}
+        <span @click=${() => this.abortController.abort()}
+          >${DoneIcon({
+            width: '24',
+            height: '24',
+          })}</span
+        >
       </div>
       <div class="latex-editor-hint">Shift Enter to line break</div>
     </div>`;
-  }
-
-  get richText() {
-    return this.querySelector('rich-text');
   }
 
   @property({ attribute: false })
   accessor abortController!: AbortController;
 
   @property({ attribute: false })
-  accessor latexSignal!: AffineLatexNode['latex$'];
-}
+  accessor latexSignal!: Signal<string>;
 
-declare global {
-  interface HTMLElementTagNameMap {
-    'latex-editor-menu': LatexEditorMenu;
-  }
+  @property({ attribute: false })
+  accessor std!: BlockStdScope;
 }

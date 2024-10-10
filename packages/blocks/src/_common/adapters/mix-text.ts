@@ -1,9 +1,11 @@
 import type { DeltaInsert } from '@blocksuite/inline';
-import type { Job } from '@blocksuite/store';
-import type { AssetsManager } from '@blocksuite/store';
 
-import { NoteDisplayMode } from '@blocksuite/affine-model';
 import {
+  DEFAULT_NOTE_BACKGROUND_COLOR,
+  NoteDisplayMode,
+} from '@blocksuite/affine-model';
+import {
+  type AssetsManager,
   ASTWalker,
   BaseAdapter,
   type BlockSnapshot,
@@ -15,10 +17,11 @@ import {
   type FromDocSnapshotResult,
   type FromSliceSnapshotPayload,
   type FromSliceSnapshotResult,
+  type Job,
+  nanoid,
   type SliceSnapshot,
   type ToBlockSnapshotPayload,
   type ToDocSnapshotPayload,
-  nanoid,
 } from '@blocksuite/store';
 
 import { MarkdownAdapter } from './markdown.js';
@@ -138,7 +141,7 @@ export class MixTextAdapter extends BaseAdapter<MixText> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -205,7 +208,7 @@ export class MixTextAdapter extends BaseAdapter<MixText> {
             flavour: 'affine:note',
             props: {
               xywh: '[0,0,800,95]',
-              background: '--affine-background-secondary-color',
+              background: DEFAULT_NOTE_BACKGROUND_COLOR,
               index: 'a0',
               hidden: false,
               displayMode: NoteDisplayMode.DocAndEdgeless,

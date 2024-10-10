@@ -1,21 +1,20 @@
 import { BlockComponent } from '@blocksuite/block-std';
 import { Peekable } from '@blocksuite/blocks';
-import { computed } from '@lit-labs/preact-signals';
+import { computed } from '@preact/signals-core';
 import { html } from 'lit';
-import { customElement } from 'lit/decorators.js';
 
 import type { AIChatBlockModel } from './ai-chat-model.js';
 
 import { ChatWithAIIcon } from '../_common/icon.js';
-import './components/ai-chat-messages.js';
 import { AIChatBlockStyles } from './styles.js';
 import { ChatMessagesSchema } from './types.js';
 
-@customElement('affine-ai-chat')
 @Peekable({
   enableOn: ({ doc }: AIChatBlockComponent) => !doc.readonly,
 })
 export class AIChatBlockComponent extends BlockComponent<AIChatBlockModel> {
+  static override styles = AIChatBlockStyles;
+
   // Deserialize messages from JSON string and verify the type using zod
   private _deserializeChatMessages = computed(() => {
     const messages = this.model.messages$.value;
@@ -30,16 +29,6 @@ export class AIChatBlockComponent extends BlockComponent<AIChatBlockModel> {
       return [];
     }
   });
-
-  static override styles = AIChatBlockStyles;
-
-  get _peekViewService() {
-    return this._rootService.peekViewService;
-  }
-
-  get _rootService() {
-    return this.host.std.getService('affine:page');
-  }
 
   override renderBlock() {
     const messages = this._deserializeChatMessages.value.slice(-2);

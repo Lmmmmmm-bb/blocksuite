@@ -1,18 +1,15 @@
 import type { PlaywrightWorkerOptions } from '@playwright/test';
 
-import { nxE2EPreset } from '@nx/playwright/preset';
 import { defineConfig } from '@playwright/test';
 
-const __filename = new URL(import.meta.url).pathname;
-
 export default defineConfig({
-  ...nxE2EPreset(__filename, { testDir: '.' }),
+  testDir: '.',
   timeout: 40000,
   fullyParallel: true,
   snapshotDir: 'snapshots',
   snapshotPathTemplate: 'snapshots/{testFilePath}/{arg}{ext}',
   webServer: {
-    command: process.env.CI ? 'pnpm -w preview' : 'pnpm -w dev',
+    command: process.env.CI ? 'yarn run -T preview' : 'yarn run -T dev',
     port: process.env.CI ? 4173 : 5173,
     reuseExistingServer: !process.env.CI,
     env: {
@@ -32,7 +29,10 @@ export default defineConfig({
     video: 'on-first-retry',
     // Timeout for each action
     actionTimeout: 5_000,
-    permissions: ['clipboard-read', 'clipboard-write'],
+    permissions:
+      process.env.BROWSER && process.env.BROWSER !== 'chromium'
+        ? []
+        : ['clipboard-read', 'clipboard-write'],
   },
   workers: '80%',
   retries: process.env.CI ? 3 : 0,

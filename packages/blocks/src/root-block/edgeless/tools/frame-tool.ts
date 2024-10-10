@@ -2,9 +2,11 @@ import type { FrameBlockModel } from '@blocksuite/affine-model';
 import type { PointerEventState } from '@blocksuite/block-std';
 import type { IPoint, IVec } from '@blocksuite/global/utils';
 
-import { Bound, Vec, assertExists, noop } from '@blocksuite/global/utils';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
+import { Bound, noop, Vec } from '@blocksuite/global/utils';
 import { DocCollection } from '@blocksuite/store';
 
+import { getTopElements } from '../utils/tree.js';
 import { EdgelessToolController } from './edgeless-tool.js';
 
 type FrameTool = {
@@ -52,18 +54,28 @@ export class FrameToolController extends EdgelessToolController<FrameTool> {
       });
       this._edgeless.tools.setEdgelessTool({ type: 'default' });
       this._edgeless.service.selection.set({
-        elements: [this._frame.id],
+        elements: [frame.id],
         editing: false,
       });
+
+      const frameManager = this._edgeless.service.frame;
+      frameManager.addElementsToFrame(
+        frame,
+        getTopElements(frameManager.getElementsInFrameBound(frame))
+      );
+
       this._doc.captureSync();
     }
+
     this._frame = null;
     this._startPoint = null;
+    this._service.frameOverlay.clear();
   }
 
   override onContainerDragMove(e: PointerEventState): void {
+    if (!this._startPoint) return;
+
     const currentPoint = this._toModelCoord(e.point);
-    assertExists(this._startPoint);
     if (Vec.dist(this._startPoint, currentPoint) < 8 && !this._frame) return;
     if (!this._frame) {
       const frames = this._service.frames;
@@ -76,22 +88,25 @@ export class FrameToolController extends EdgelessToolController<FrameTool> {
         },
         this._service.surface
       );
-      this._service.telemetryService?.track('CanvasElementAdded', {
-        control: 'canvas:draw',
-        page: 'whiteboard editor',
-        module: 'toolbar',
-        segment: 'toolbar',
-        type: 'frame',
-      });
+      this._service.std
+        .getOptional(TelemetryProvider)
+        ?.track('CanvasElementAdded', {
+          control: 'canvas:draw',
+          page: 'whiteboard editor',
+          module: 'toolbar',
+          segment: 'toolbar',
+          type: 'frame',
+        });
       this._frame = this._service.getElementById(id) as FrameBlockModel;
       this._frame.stash('xywh');
       return;
     }
-    assertExists(this._frame);
 
     this._service.updateElement(this._frame.id, {
       xywh: Bound.fromPoints([this._startPoint, currentPoint]).serialize(),
     });
+
+    this._service.frameOverlay.highlight(this._frame, true, false);
   }
 
   override onContainerDragStart(e: PointerEventState): void {

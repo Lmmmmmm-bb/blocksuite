@@ -1,18 +1,25 @@
 {
   "name": "@blocksuite/presets",
-  "version": "0.16.0",
+  "version": "0.17.18",
   "description": "Prebuilt BlockSuite editors and opt-in additional UI components.",
   "type": "module",
-  "repository": "toeverything/blocksuite",
-  "scripts": {
-    "build": "tsc --build --verbose",
-    "test:unit": "nx vite:test --browser.headless --run",
-    "test:debug": "nx vite:test"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toeverything/blocksuite.git",
+    "directory": "packages/presets"
   },
+  "scripts": {
+    "build": "tsc",
+    "test:unit": "nx vite:test --browser.headless --run",
+    "test:debug": "PWDEBUG=1 npx vitest"
+  },
+  "sideEffects": false,
   "keywords": [],
   "author": "toeverything",
   "license": "MPL-2.0",
   "dependencies": {
+    "@blocksuite/affine-block-surface": "workspace:*",
+    "@blocksuite/affine-model": "workspace:*",
     "@blocksuite/affine-shared": "workspace:*",
     "@blocksuite/block-std": "workspace:*",
     "@blocksuite/blocks": "workspace:*",
@@ -20,15 +27,15 @@
     "@blocksuite/inline": "workspace:*",
     "@blocksuite/store": "workspace:*",
     "@floating-ui/dom": "^1.6.10",
-    "@lit-labs/preact-signals": "^1.0.2",
     "@lottiefiles/dotlottie-wc": "^0.2.16",
-    "@toeverything/theme": "^1.0.7",
+    "@preact/signals-core": "^1.8.0",
+    "@toeverything/theme": "^1.0.8",
     "lit": "^3.2.0",
     "zod": "^3.23.8"
   },
   "exports": {
     ".": "./src/index.ts",
-    "./themes/*": "./themes/*"
+    "./effects": "./src/effects.ts"
   },
   "publishConfig": {
     "access": "public",
@@ -37,9 +44,14 @@
     "exports": {
       ".": {
         "module": "./dist/index.js",
+        "types": "./dist/index.d.ts",
         "import": "./dist/index.js"
       },
-      "./themes/*": "./themes/*"
+      "./effects": {
+        "module": "./dist/effects.js",
+        "types": "./dist/effects.d.ts",
+        "import": "./dist/effects.js"
+      }
     }
   },
   "files": [

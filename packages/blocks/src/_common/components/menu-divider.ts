@@ -1,9 +1,8 @@
-import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 // FIXME: horizontal
-@customElement('menu-divider')
 export class MenuDivider extends LitElement {
   static override styles = css`
     :host {

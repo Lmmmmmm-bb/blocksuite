@@ -1,14 +1,11 @@
-import type {
-  GroupElementModel,
-  MindmapElementModel,
-} from '@blocksuite/blocks';
+import type { MindmapElementModel } from '@blocksuite/affine-model';
 
 import {
-  DocMode,
   type EdgelessRootBlockComponent,
+  type GroupElementModel,
+  LayoutType,
   NoteDisplayMode,
 } from '@blocksuite/blocks';
-import { LayoutType } from '@blocksuite/blocks';
 import { DocCollection } from '@blocksuite/store';
 import { beforeEach, describe, expect, test } from 'vitest';
 
@@ -20,7 +17,7 @@ describe('group', () => {
   let service!: EdgelessRootBlockComponent['service'];
 
   beforeEach(async () => {
-    const cleanup = await setupEditor(DocMode.Edgeless);
+    const cleanup = await setupEditor('edgeless');
     service = getDocRootBlock(window.doc, window.editor, 'edgeless').service;
 
     return cleanup;
@@ -200,7 +197,7 @@ describe('mindmap', () => {
   let service!: EdgelessRootBlockComponent['service'];
 
   beforeEach(async () => {
-    const cleanup = await setupEditor(DocMode.Edgeless);
+    const cleanup = await setupEditor('edgeless');
     service = getDocRootBlock(window.doc, window.editor, 'edgeless').service;
 
     return cleanup;

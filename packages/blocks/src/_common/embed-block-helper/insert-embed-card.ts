@@ -1,8 +1,7 @@
-import type { EmbedCardStyle } from '@blocksuite/affine-model';
+import type { DocMode, EmbedCardStyle } from '@blocksuite/affine-model';
 import type { BlockStdScope } from '@blocksuite/block-std';
 import type { BlockModel, Doc } from '@blocksuite/store';
 
-import { DocMode } from '@blocksuite/affine-model';
 import {
   EMBED_CARD_HEIGHT,
   EMBED_CARD_WIDTH,
@@ -31,13 +30,13 @@ function getParentModelBySelection(
       model: null,
     };
 
-  if (currentMode === DocMode.Edgeless) {
+  if (currentMode === 'edgeless') {
     const surface =
       root.children.find(child => child.flavour === 'affine:surface') ?? null;
     return { index: undefined, model: surface };
   }
 
-  if (currentMode === DocMode.Page) {
+  if (currentMode === 'page') {
     let selectedBlock = selected;
     let index: undefined | number = undefined;
 
@@ -73,18 +72,18 @@ export function insertEmbedCard(
   properties: EmbedCardProperties
 ) {
   const { doc, host } = std;
+  const mode = std.get(DocModeProvider).getEditorMode() ?? 'page';
   const rootService = std.getService('affine:page');
-  const mode = std.get(DocModeProvider).getMode();
-  const selectedBlock = rootService.selectedBlocks[0]?.model;
+  const selectedBlock = rootService?.selectedBlocks[0]?.model;
 
   const { model, index } = getParentModelBySelection(doc, mode, selectedBlock);
   const { flavour, targetStyle, props } = properties;
 
-  if (mode === DocMode.Page) {
+  if (mode === 'page') {
     host.doc.addBlock(flavour as never, props, model, index);
     return;
   }
-  if (mode === DocMode.Edgeless) {
+  if (mode === 'edgeless') {
     const edgelessRoot = getRootByEditorHost(
       host
     ) as EdgelessRootBlockComponent | null;

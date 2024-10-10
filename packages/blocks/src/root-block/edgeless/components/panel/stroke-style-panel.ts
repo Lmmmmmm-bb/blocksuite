@@ -1,14 +1,12 @@
 import { SHAPE_STROKE_COLORS, StrokeStyle } from '@blocksuite/affine-model';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { ColorEvent } from './color-panel.js';
 
-import './color-panel.js';
 import { type LineStyleEvent, LineStylesPanel } from './line-styles-panel.js';
 
-@customElement('stroke-style-panel')
 export class StrokeStylePanel extends WithDisposable(LitElement) {
   static override styles = css`
     :host {

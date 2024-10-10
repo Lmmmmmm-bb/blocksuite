@@ -3,7 +3,7 @@ import type { ImageBlockModel } from '@blocksuite/affine-model';
 import { CaptionedBlockComponent } from '@blocksuite/affine-components/caption';
 import { Peekable } from '@blocksuite/affine-components/peek';
 import { html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { property, query, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { when } from 'lit/directives/when.js';
 
@@ -11,8 +11,6 @@ import type { ImageBlockFallbackCard } from './components/image-block-fallback.j
 import type { ImageBlockPageComponent } from './components/page-image-block.js';
 import type { ImageBlockService } from './image-service.js';
 
-import './components/image-block-fallback.js';
-import './components/page-image-block.js';
 import {
   copyImageBlob,
   downloadImageBlob,
@@ -20,7 +18,6 @@ import {
   turnImageIntoCardView,
 } from './utils.js';
 
-@customElement('affine-image')
 @Peekable()
 export class ImageBlockComponent extends CaptionedBlockComponent<
   ImageBlockModel,
@@ -42,6 +39,10 @@ export class ImageBlockComponent extends CaptionedBlockComponent<
     this.retryCount = 0;
     fetchImageBlob(this).catch(console.error);
   };
+
+  get resizableImg() {
+    return this.pageImage?.resizeImg;
+  }
 
   private _handleClick(event: MouseEvent) {
     // the peek view need handle shift + click
@@ -104,10 +105,6 @@ export class ImageBlockComponent extends CaptionedBlockComponent<
 
   override updated() {
     this.fallbackCard?.requestUpdate();
-  }
-
-  get resizableImg() {
-    return this.pageImage?.resizeImg;
   }
 
   @property({ attribute: false })

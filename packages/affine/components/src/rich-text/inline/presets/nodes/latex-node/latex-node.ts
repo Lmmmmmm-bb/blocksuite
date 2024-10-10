@@ -1,34 +1,29 @@
-import type { InlineEditor } from '@blocksuite/inline';
-
 import {
   type BlockComponent,
+  type BlockStdScope,
   ShadowlessElement,
-  WithDisposable,
 } from '@blocksuite/block-std';
+import { SignalWatcher, WithDisposable } from '@blocksuite/global/utils';
 import {
   type DeltaInsert,
+  type InlineEditor,
   ZERO_WIDTH_NON_JOINER,
   ZERO_WIDTH_SPACE,
 } from '@blocksuite/inline';
-import { SignalWatcher, effect, signal } from '@lit-labs/preact-signals';
+import { effect, signal } from '@preact/signals-core';
 import { cssVar } from '@toeverything/theme';
 import { cssVarV2 } from '@toeverything/theme/v2';
 import katex from 'katex';
 import { css, html, render, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 
-import type { AffineTextAttributes } from '../../affine-inline-specs.js';
+import type { AffineTextAttributes } from '../../../../extension/index.js';
 
 import { createLitPortal } from '../../../../../portal/helper.js';
-import './latex-editor-menu.js';
-import './latex-editor-unit.js';
 
-@customElement('affine-latex-node')
 export class AffineLatexNode extends SignalWatcher(
   WithDisposable(ShadowlessElement)
 ) {
-  private _editorAbortController: AbortController | null = null;
-
   static override styles = css`
     affine-latex-node {
       display: inline-block;
@@ -91,7 +86,17 @@ export class AffineLatexNode extends SignalWatcher(
     }
   `;
 
+  private _editorAbortController: AbortController | null = null;
+
   readonly latex$ = signal('');
+
+  get deltaLatex() {
+    return this.delta.attributes?.latex as string;
+  }
+
+  get latexContainer() {
+    return this.querySelector<HTMLElement>('.latex-container');
+  }
 
   override connectedCallback() {
     const result = super.connectedCallback();
@@ -177,16 +182,10 @@ export class AffineLatexNode extends SignalWatcher(
 
     this._editorAbortController?.abort();
     this._editorAbortController = new AbortController();
-    this._editorAbortController.signal.addEventListener(
-      'abort',
-      () => {
-        portal.remove();
-      },
-      { once: true }
-    );
 
     const portal = createLitPortal({
       template: html`<latex-editor-menu
+        .std=${this.std}
         .latexSignal=${this.latex$}
         .abortController=${this._editorAbortController}
       ></latex-editor-menu>`,
@@ -205,14 +204,14 @@ export class AffineLatexNode extends SignalWatcher(
         zIndex: 'var(--affine-z-index-popover)',
       },
     });
-  }
 
-  get deltaLatex() {
-    return this.delta.attributes?.latex as string;
-  }
-
-  get latexContainer() {
-    return this.querySelector<HTMLElement>('.latex-container');
+    this._editorAbortController.signal.addEventListener(
+      'abort',
+      () => {
+        portal.remove();
+      },
+      { once: true }
+    );
   }
 
   @property({ attribute: false })
@@ -231,10 +230,7 @@ export class AffineLatexNode extends SignalWatcher(
 
   @property({ attribute: false })
   accessor startOffset!: number;
-}
 
-declare global {
-  interface HTMLElementTagNameMap {
-    'affine-latex-node': AffineLatexNode;
-  }
+  @property({ attribute: false })
+  accessor std!: BlockStdScope;
 }

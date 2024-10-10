@@ -1,14 +1,11 @@
 import type { ImageBlockModel } from '@blocksuite/affine-model';
 
 import { humanFileSize } from '@blocksuite/affine-shared/utils';
-import {
-  ShadowlessElement,
-  WithDisposable,
-  modelContext,
-} from '@blocksuite/block-std';
+import { modelContext, ShadowlessElement } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { consume } from '@lit/context';
 import { css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { FailedImageIcon, ImageIcon, LoadingIcon } from '../styles.js';
@@ -18,7 +15,6 @@ export const SURFACE_IMAGE_CARD_HEIGHT = 122;
 export const NOTE_IMAGE_CARD_WIDTH = 752;
 export const NOTE_IMAGE_CARD_HEIGHT = 78;
 
-@customElement('affine-image-fallback-card')
 export class ImageBlockFallbackCard extends WithDisposable(ShadowlessElement) {
   static override styles = css`
     .affine-image-fallback-card-container {

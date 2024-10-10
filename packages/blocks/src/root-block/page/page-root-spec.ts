@@ -1,4 +1,8 @@
-import { DocModeService } from '@blocksuite/affine-shared/services';
+import {
+  DocModeService,
+  EmbedOptionService,
+} from '@blocksuite/affine-shared/services';
+import { AFFINE_SCROLL_ANCHORING_WIDGET } from '@blocksuite/affine-widget-scroll-anchoring';
 import {
   BlockViewExtension,
   CommandExtension,
@@ -8,9 +12,10 @@ import {
 } from '@blocksuite/block-std';
 import { literal, unsafeStatic } from 'lit/static-html.js';
 
+import { ExportManagerExtension } from '../../_common/export-manager/export-manager.js';
 import { commands } from '../commands/index.js';
 import { AFFINE_DOC_REMOTE_SELECTION_WIDGET } from '../widgets/doc-remote-selection/doc-remote-selection.js';
-import { AFFINE_DRAG_HANDLE_WIDGET } from '../widgets/drag-handle/drag-handle.js';
+import { AFFINE_DRAG_HANDLE_WIDGET } from '../widgets/drag-handle/consts.js';
 import { AFFINE_EMBED_CARD_TOOLBAR_WIDGET } from '../widgets/embed-card-toolbar/embed-card-toolbar.js';
 import { AFFINE_FORMAT_BAR_WIDGET } from '../widgets/format-bar/format-bar.js';
 import { AFFINE_INNER_MODAL_WIDGET } from '../widgets/inner-modal/inner-modal.js';
@@ -48,13 +53,16 @@ export const pageRootWidgetViewMap = {
   [AFFINE_VIEWPORT_OVERLAY_WIDGET]: literal`${unsafeStatic(
     AFFINE_VIEWPORT_OVERLAY_WIDGET
   )}`,
+  [AFFINE_SCROLL_ANCHORING_WIDGET]: literal`${unsafeStatic(AFFINE_SCROLL_ANCHORING_WIDGET)}`,
 };
 
 export const PageRootBlockSpec: ExtensionType[] = [
   FlavourExtension('affine:page'),
   PageRootService,
   DocModeService,
+  EmbedOptionService,
   CommandExtension(commands),
   BlockViewExtension('affine:page', literal`affine-page-root`),
   WidgetViewMapExtension('affine:page', pageRootWidgetViewMap),
+  ExportManagerExtension,
 ];

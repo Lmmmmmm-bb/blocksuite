@@ -1,4 +1,4 @@
-import { BaseSelection } from '@blocksuite/block-std';
+import { BaseSelection, SelectionExtension } from '@blocksuite/block-std';
 import z from 'zod';
 
 const ImageSelectionSchema = z.object({
@@ -11,10 +11,8 @@ export class ImageSelection extends BaseSelection {
   static override type = 'image';
 
   static override fromJSON(json: Record<string, unknown>): ImageSelection {
-    ImageSelectionSchema.parse(json);
-    return new ImageSelection({
-      blockId: json.blockId as string,
-    });
+    const result = ImageSelectionSchema.parse(json);
+    return new ImageSelection(result);
   }
 
   override equals(other: BaseSelection): boolean {
@@ -39,3 +37,5 @@ declare global {
     }
   }
 }
+
+export const ImageSelectionExtension = SelectionExtension(ImageSelection);

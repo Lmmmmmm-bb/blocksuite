@@ -21,8 +21,8 @@ import {
   Heading5Icon,
   Heading6Icon,
   ItalicIcon,
-  LinkIcon,
   LinkedDocIcon,
+  LinkIcon,
   MoreVerticalIcon,
   NumberedListIcon,
   QuoteIcon,
@@ -30,22 +30,24 @@ import {
   TextIcon,
   UnderlineIcon,
 } from '@blocksuite/affine-components/icons';
-import { createSimplePortal } from '@blocksuite/affine-components/portal';
 import { toast } from '@blocksuite/affine-components/toast';
 import { renderGroups } from '@blocksuite/affine-components/toolbar';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
+import { tableViewMeta } from '@blocksuite/data-view/view-presets';
 import { assertExists } from '@blocksuite/global/utils';
 import { Slice } from '@blocksuite/store';
-import { type TemplateResult, html } from 'lit';
+import { html, type TemplateResult } from 'lit';
 
 import type { AffineFormatBarWidget } from './format-bar.js';
 
-import { DATABASE_CONVERT_WHITE_LIST } from '../../../_common/configs/quick-action/database-convert-view.js';
 import {
   convertSelectedBlocksToLinkedDoc,
   getTitleFromSelectedModels,
   notifyDocCreated,
   promptDocTitle,
 } from '../../../_common/utils/render-linked-doc.js';
+import { convertToDatabase } from '../../../database-block/data-source.js';
+import { DATABASE_CONVERT_WHITE_LIST } from '../../../database-block/utils.js';
 import { FormatBarContext } from './context.js';
 
 export type DividerConfigItem = {
@@ -140,15 +142,11 @@ export function toolbarDefaultConfig(toolbar: AffineFormatBarWidget) {
     .addDivider()
     .addInlineAction({
       id: 'convert-to-database',
-      name: 'Create Database',
+      name: 'Create Table',
       icon: DatabaseTableViewIcon20,
       isActive: () => false,
       action: () => {
-        createSimplePortal({
-          template: html`<database-convert-view
-            .host=${toolbar.host}
-          ></database-convert-view>`,
-        });
+        convertToDatabase(toolbar.host, tableViewMeta.type);
       },
       showWhen: chain => {
         const middleware = (count = 0) => {
@@ -217,22 +215,18 @@ export function toolbarDefaultConfig(toolbar: AffineFormatBarWidget) {
           if (title === null) return;
           convertSelectedBlocksToLinkedDoc(doc, selectedModels, title);
           notifyDocCreated(host, doc);
-          host.std
-            .getService('affine:page')
-            .telemetryService?.track('DocCreated', {
-              control: 'create linked doc',
-              page: 'doc editor',
-              module: 'format toolbar',
-              type: 'embed-linked-doc',
-            });
-          host.std
-            .getService('affine:page')
-            .telemetryService?.track('LinkedDocCreated', {
-              control: 'create linked doc',
-              page: 'doc editor',
-              module: 'format toolbar',
-              type: 'embed-linked-doc',
-            });
+          host.std.getOptional(TelemetryProvider)?.track('DocCreated', {
+            control: 'create linked doc',
+            page: 'doc editor',
+            module: 'format toolbar',
+            type: 'embed-linked-doc',
+          });
+          host.std.getOptional(TelemetryProvider)?.track('LinkedDocCreated', {
+            control: 'create linked doc',
+            page: 'doc editor',
+            module: 'format toolbar',
+            type: 'embed-linked-doc',
+          });
         });
       },
       showWhen: chain => {

@@ -1,13 +1,20 @@
-import type { AffineTextAttributes } from '@blocksuite/affine-components/rich-text';
-
 import { ShadowlessElement } from '@blocksuite/block-std';
 import { type DeltaInsert, ZERO_WIDTH_SPACE } from '@blocksuite/inline';
 import { html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-@customElement('latex-editor-unit')
+import type { AffineTextAttributes } from '../../../../extension/index.js';
+
 export class LatexEditorUnit extends ShadowlessElement {
+  get latexMenu() {
+    return this.closest('latex-editor-menu');
+  }
+
+  get vElement() {
+    return this.closest('v-element');
+  }
+
   override render() {
     const plainContent = html`<span
       ><v-text .str=${this.delta.insert}></v-text
@@ -21,7 +28,11 @@ export class LatexEditorUnit extends ShadowlessElement {
 
     const lineIndex = this.vElement.lineIndex;
     const tokens = latexMenu.highlightTokens$.value[lineIndex] ?? [];
-    if (tokens.length === 0) {
+    if (
+      tokens.length === 0 ||
+      tokens.reduce((acc, token) => acc + token.content, '') !==
+        this.delta.insert
+    ) {
       return plainContent;
     }
 
@@ -37,22 +48,8 @@ export class LatexEditorUnit extends ShadowlessElement {
     >`;
   }
 
-  get latexMenu() {
-    return this.closest('latex-editor-menu');
-  }
-
-  get vElement() {
-    return this.closest('v-element');
-  }
-
   @property({ attribute: false })
   accessor delta: DeltaInsert<AffineTextAttributes> = {
     insert: ZERO_WIDTH_SPACE,
   };
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'latex-editor-unit': LatexEditorUnit;
-  }
 }

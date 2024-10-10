@@ -10,6 +10,15 @@ import type {
 } from '@blocksuite/affine-model';
 
 import {
+  type EmbedFigmaBlockComponent,
+  type EmbedGithubBlockComponent,
+  type EmbedLinkedDocBlockComponent,
+  type EmbedLoomBlockComponent,
+  type EmbedSyncedDocBlockComponent,
+  type EmbedYoutubeBlockComponent,
+  isLinkToNode,
+} from '@blocksuite/affine-block-embed';
+import {
   CaptionIcon,
   CenterPeekIcon,
   CopyIcon,
@@ -26,25 +35,21 @@ import {
   renderToolbarSeparator,
 } from '@blocksuite/affine-components/toolbar';
 import { BookmarkStyles } from '@blocksuite/affine-model';
+import {
+  EmbedOptionProvider,
+  type EmbedOptions,
+} from '@blocksuite/affine-shared/services';
 import { getHostName } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
-import { Bound } from '@blocksuite/global/utils';
-import { LitElement, type TemplateResult, css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { Bound, WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
+import { property, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { join } from 'lit/directives/join.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { EmbedCardStyle } from '../../../_common/types.js';
 import type { BookmarkBlockComponent } from '../../../bookmark-block/index.js';
-import type { EmbedFigmaBlockComponent } from '../../../embed-figma-block/index.js';
-import type { EmbedGithubBlockComponent } from '../../../embed-github-block/index.js';
-import type { EmbedLinkedDocBlockComponent } from '../../../embed-linked-doc-block/index.js';
-import type { EmbedLoomBlockComponent } from '../../../embed-loom-block/index.js';
-import type { EmbedSyncedDocBlockComponent } from '../../../embed-synced-doc-block/index.js';
-import type { EmbedYoutubeBlockComponent } from '../../../embed-youtube-block/index.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
-import type { EmbedOptions } from '../../root-service.js';
 
 import { toggleEmbedCardEditModal } from '../../../_common/components/embed-card/modal/embed-card-edit-modal.js';
 import {
@@ -52,8 +57,6 @@ import {
   EMBED_CARD_WIDTH,
 } from '../../../_common/consts.js';
 import { getEmbedCardIcons } from '../../../_common/utils/url.js';
-import { isLinkToNode } from '../../../embed-linked-doc-block/utils.js';
-import '../../edgeless/components/panel/card-style-panel.js';
 import {
   isBookmarkBlock,
   isEmbedGithubBlock,
@@ -62,8 +65,41 @@ import {
   isEmbedSyncedDocBlock,
 } from '../../edgeless/utils/query.js';
 
-@customElement('edgeless-change-embed-card-button')
 export class EdgelessChangeEmbedCardButton extends WithDisposable(LitElement) {
+  static override styles = css`
+    .affine-link-preview {
+      display: flex;
+      justify-content: flex-start;
+      width: 140px;
+      padding: var(--1, 0px);
+      border-radius: var(--1, 0px);
+      opacity: var(--add, 1);
+      user-select: none;
+      cursor: pointer;
+
+      color: var(--affine-link-color);
+      font-feature-settings:
+        'clig' off,
+        'liga' off;
+      font-family: var(--affine-font-family);
+      font-size: var(--affine-font-sm);
+      font-style: normal;
+      font-weight: 400;
+      text-decoration: none;
+      text-wrap: nowrap;
+    }
+
+    .affine-link-preview > span {
+      display: inline-block;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+
+      text-overflow: ellipsis;
+      overflow: hidden;
+      opacity: var(--add, 1);
+    }
+  `;
+
   private _convertToCardView = () => {
     if (this._isCardView) {
       return;
@@ -194,40 +230,6 @@ export class EdgelessChangeEmbedCardButton extends WithDisposable(LitElement) {
     if (!this._blockComponent) return;
     peek(this._blockComponent);
   };
-
-  static override styles = css`
-    .affine-link-preview {
-      display: flex;
-      justify-content: flex-start;
-      width: 140px;
-      padding: var(--1, 0px);
-      border-radius: var(--1, 0px);
-      opacity: var(--add, 1);
-      user-select: none;
-      cursor: pointer;
-
-      color: var(--affine-link-color);
-      font-feature-settings:
-        'clig' off,
-        'liga' off;
-      font-family: var(--affine-font-family);
-      font-size: var(--affine-font-sm);
-      font-style: normal;
-      font-weight: 400;
-      text-decoration: none;
-      text-wrap: nowrap;
-    }
-
-    .affine-link-preview > span {
-      display: inline-block;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-
-      text-overflow: ellipsis;
-      overflow: hidden;
-      opacity: var(--add, 1);
-    }
-  `;
 
   private get _blockComponent() {
     const blockSelection =
@@ -365,6 +367,23 @@ export class EdgelessChangeEmbedCardButton extends WithDisposable(LitElement) {
     );
   }
 
+  private get _viewType(): 'inline' | 'embed' | 'card' {
+    if (this._isCardView) {
+      return 'card';
+    }
+
+    if (this._isEmbedView) {
+      return 'embed';
+    }
+
+    // unreachable
+    return 'inline';
+  }
+
+  private get std() {
+    return this.edgeless.std;
+  }
+
   private _openMenuButton() {
     const buttons: MenuItem[] = [];
 
@@ -435,10 +454,6 @@ export class EdgelessChangeEmbedCardButton extends WithDisposable(LitElement) {
         </div>
       </editor-menu-button>
     `;
-  }
-
-  private get _rootService() {
-    return this.std.getService('affine:page');
   }
 
   private _setCardStyle(style: EmbedCardStyle) {
@@ -534,23 +549,6 @@ export class EdgelessChangeEmbedCardButton extends WithDisposable(LitElement) {
     return nothing;
   }
 
-  private get _viewType(): 'inline' | 'embed' | 'card' {
-    if (this._isCardView) {
-      return 'card';
-    }
-
-    if (this._isEmbedView) {
-      return 'embed';
-    }
-
-    // unreachable
-    return 'inline';
-  }
-
-  private get std() {
-    return this.edgeless.std;
-  }
-
   override connectedCallback() {
     super.connectedCallback();
     this._embedScale = this._getScale();
@@ -559,9 +557,9 @@ export class EdgelessChangeEmbedCardButton extends WithDisposable(LitElement) {
   override render() {
     const model = this.model;
     if ('url' in this.model) {
-      this._embedOptions = this._rootService.getEmbedBlockOptions(
-        this.model.url
-      );
+      this._embedOptions = this.std
+        .get(EmbedOptionProvider)
+        .getEmbedBlockOptions(this.model.url);
     }
 
     const buttons = [

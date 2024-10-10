@@ -2,27 +2,19 @@ import {
   EdgelessPenDarkIcon,
   EdgelessPenLightIcon,
 } from '@blocksuite/affine-components/icons';
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { SignalWatcher, computed } from '@lit-labs/preact-signals';
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { SignalWatcher } from '@blocksuite/global/utils';
+import { computed } from '@preact/signals-core';
+import { css, html, LitElement } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import '../../buttons/toolbar-button.js';
 import { getTooltipWithShortcut } from '../../utils.js';
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
-import './brush-menu.js';
 
-@customElement('edgeless-brush-tool-button')
 export class EdgelessBrushToolButton extends EdgelessToolbarToolMixin(
   SignalWatcher(LitElement)
 ) {
-  private _color$ = computed(() => {
-    return ThemeObserver.generateColorProperty(
-      this.edgeless.service.editPropsStore.lastProps$.value.brush.color
-    );
-  });
-
   static override styles = css`
     :host {
       display: flex;
@@ -49,6 +41,12 @@ export class EdgelessBrushToolButton extends EdgelessToolbarToolMixin(
     }
   `;
 
+  private _color$ = computed(() => {
+    return ThemeObserver.generateColorProperty(
+      this.edgeless.std.get(EditPropsStore).lastProps$.value.brush.color
+    );
+  });
+
   override enableActiveBackground = true;
 
   override type = 'brush' as const;
@@ -60,7 +58,7 @@ export class EdgelessBrushToolButton extends EdgelessToolbarToolMixin(
     Object.assign(menu.element, {
       edgeless: this.edgeless,
       onChange: (props: Record<string, unknown>) => {
-        this.edgeless.service.editPropsStore.recordLastProps('brush', props);
+        this.edgeless.std.get(EditPropsStore).recordLastProps('brush', props);
         this.setEdgelessTool({ type: 'brush' });
       },
     });

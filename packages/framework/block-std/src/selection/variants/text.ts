@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { SelectionExtension } from '../../extension/selection.js';
 import { BaseSelection } from '../base.js';
 
 export type TextRangePoint = {
@@ -43,6 +44,14 @@ export class TextSelection extends BaseSelection {
 
   to: TextRangePoint | null;
 
+  get end(): TextRangePoint {
+    return this.reverse ? this.from : (this.to ?? this.from);
+  }
+
+  get start(): TextRangePoint {
+    return this.reverse ? (this.to ?? this.from) : this.from;
+  }
+
   constructor({ from, to, reverse }: TextSelectionProps) {
     super({
       blockId: from.blockId,
@@ -55,12 +64,8 @@ export class TextSelection extends BaseSelection {
   }
 
   static override fromJSON(json: Record<string, unknown>): TextSelection {
-    TextSelectionSchema.parse(json);
-    return new TextSelection({
-      from: json.from as TextRangePoint,
-      to: json.to as TextRangePoint | null,
-      reverse: !!json.reverse,
-    });
+    const result = TextSelectionSchema.parse(json);
+    return new TextSelection(result);
   }
 
   private _equalPoint(
@@ -107,20 +112,6 @@ export class TextSelection extends BaseSelection {
       reverse: this.reverse,
     };
   }
-
-  get end(): TextRangePoint {
-    return this.reverse ? this.from : (this.to ?? this.from);
-  }
-
-  get start(): TextRangePoint {
-    return this.reverse ? (this.to ?? this.from) : this.from;
-  }
 }
 
-declare global {
-  namespace BlockSuite {
-    interface Selection {
-      text: typeof TextSelection;
-    }
-  }
-}
+export const TextSelectionExtension = SelectionExtension(TextSelection);

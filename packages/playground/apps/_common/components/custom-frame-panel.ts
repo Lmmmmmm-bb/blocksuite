@@ -1,6 +1,8 @@
 import type { AffineEditorContainer } from '@blocksuite/presets';
 
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { effect } from '@preact/signals-core';
 import { css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
@@ -23,7 +25,7 @@ export class CustomFramePanel extends WithDisposable(ShadowlessElement) {
 
   private _renderPanel() {
     return html`<affine-frame-panel
-      .editor=${this.editor}
+      .host=${this.editor.std.host}
     ></affine-frame-panel>`;
   }
 
@@ -31,10 +33,13 @@ export class CustomFramePanel extends WithDisposable(ShadowlessElement) {
     super.connectedCallback();
 
     this.disposables.add(
-      this.editor.slots.editorModeSwitched.on(() => {
-        this.editor.updateComplete
-          .then(() => this.requestUpdate())
-          .catch(console.error);
+      effect(() => {
+        const std = this.editor.std;
+        if (std) {
+          this.editor.updateComplete
+            .then(() => this.requestUpdate())
+            .catch(console.error);
+        }
       })
     );
   }

@@ -1,13 +1,14 @@
-import type { BlockComponent, EditorHost } from '@blocksuite/block-std';
 import type { Point } from '@blocksuite/global/utils';
 import type { BlockModel } from '@blocksuite/store';
 
-import { matchFlavours } from '@blocksuite/affine-shared/utils';
+import {
+  getRectByBlockComponent,
+  matchFlavours,
+} from '@blocksuite/affine-shared/utils';
+import { BLOCK_ID_ATTR, type EditorHost } from '@blocksuite/block-std';
 import { assertExists } from '@blocksuite/global/utils';
 
 import type { RootBlockComponent } from '../../index.js';
-
-import { BLOCK_ID_ATTR } from '../consts.js';
 
 const ATTR_SELECTOR = `[${BLOCK_ID_ATTR}]`;
 
@@ -49,7 +50,6 @@ export function getEdgelessRootByEditorHost(editorHost: EditorHost) {
  * Get block component by model.
  * Note that this function is used for compatibility only, and may be removed in the future.
  *
- * Use `root.view.viewFromPath` instead.
  * @deprecated
  */
 export function getBlockComponentByModel(
@@ -60,24 +60,8 @@ export function getBlockComponentByModel(
   return editorHost.view.getBlock(model.id);
 }
 
-function isDatabase({ tagName }: Element) {
-  return tagName === 'AFFINE-DATABASE-TABLE' || tagName === 'AFFINE-DATABASE';
-}
-
 function isEdgelessChildNote({ classList }: Element) {
   return classList.contains('note-background');
-}
-
-/**
- * Returns rect of the block element.
- *
- * Compatible with Safari!
- * https://github.com/toeverything/blocksuite/issues/902
- * https://github.com/toeverything/blocksuite/pull/1121
- */
-export function getRectByBlockComponent(element: Element | BlockComponent) {
-  if (isDatabase(element)) return element.getBoundingClientRect();
-  return (element.firstElementChild ?? element).getBoundingClientRect();
 }
 
 /**

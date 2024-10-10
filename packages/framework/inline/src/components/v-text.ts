@@ -1,10 +1,9 @@
-import { LitElement, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { ZERO_WIDTH_SPACE } from '../consts.js';
 
-@customElement('v-text')
 export class VText extends LitElement {
   override createRenderRoot() {
     return this;

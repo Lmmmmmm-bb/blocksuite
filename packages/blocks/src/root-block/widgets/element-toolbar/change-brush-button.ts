@@ -1,16 +1,15 @@
-import {
-  type BrushProps,
-  type ColorScheme,
-  LINE_COLORS,
-  LineWidth,
+import type {
+  BrushElementModel,
+  BrushProps,
+  ColorScheme,
 } from '@blocksuite/affine-model';
-import { WithDisposable } from '@blocksuite/block-std';
-import { countBy, maxBy } from '@blocksuite/global/utils';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+
+import { LINE_COLORS, LineWidth } from '@blocksuite/affine-model';
+import { countBy, maxBy, WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement, nothing } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { when } from 'lit/directives/when.js';
 
-import type { BrushElementModel } from '../../../surface-block/index.js';
 import type { EdgelessColorPickerButton } from '../../edgeless/components/color-picker/button.js';
 import type { PickColorEvent } from '../../edgeless/components/color-picker/types.js';
 import type { ColorEvent } from '../../edgeless/components/panel/color-panel.js';
@@ -21,9 +20,7 @@ import {
   packColor,
   packColorsWithColorScheme,
 } from '../../edgeless/components/color-picker/utils.js';
-import '../../edgeless/components/panel/color-panel.js';
 import { GET_DEFAULT_LINE_COLOR } from '../../edgeless/components/panel/color-panel.js';
-import '../../edgeless/components/panel/line-width-panel.js';
 
 function getMostCommonColor(
   elements: BrushElementModel[],
@@ -48,7 +45,6 @@ function notEqual<K extends keyof BrushProps>(key: K, value: BrushProps[K]) {
   return (element: BrushElementModel) => element[key] !== value;
 }
 
-@customElement('edgeless-change-brush-button')
 export class EdgelessChangeBrushButton extends WithDisposable(LitElement) {
   private _setBrushColor = ({ detail: color }: ColorEvent) => {
     this._setBrushProp('color', color);
@@ -75,6 +71,29 @@ export class EdgelessChangeBrushButton extends WithDisposable(LitElement) {
       ele[event.type === 'start' ? 'stash' : 'pop']('color')
     );
   };
+
+  get doc() {
+    return this.edgeless.doc;
+  }
+
+  get selectedColor() {
+    const colorScheme = this.edgeless.surface.renderer.getColorScheme();
+    return (
+      this._selectedColor ?? getMostCommonColor(this.elements, colorScheme)
+    );
+  }
+
+  get selectedSize() {
+    return this._selectedSize ?? getMostCommonSize(this.elements);
+  }
+
+  get service() {
+    return this.edgeless.service;
+  }
+
+  get surface() {
+    return this.edgeless.surface;
+  }
 
   private _setBrushProp<K extends keyof BrushProps>(
     key: K,
@@ -144,29 +163,6 @@ export class EdgelessChangeBrushButton extends WithDisposable(LitElement) {
         `
       )}
     `;
-  }
-
-  get doc() {
-    return this.edgeless.doc;
-  }
-
-  get selectedColor() {
-    const colorScheme = this.edgeless.surface.renderer.getColorScheme();
-    return (
-      this._selectedColor ?? getMostCommonColor(this.elements, colorScheme)
-    );
-  }
-
-  get selectedSize() {
-    return this._selectedSize ?? getMostCommonSize(this.elements);
-  }
-
-  get service() {
-    return this.edgeless.service;
-  }
-
-  get surface() {
-    return this.edgeless.surface;
   }
 
   @state()

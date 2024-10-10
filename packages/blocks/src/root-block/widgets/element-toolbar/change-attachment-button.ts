@@ -3,11 +3,9 @@ import {
   DownloadIcon,
   PaletteIcon,
 } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { Bound } from '@blocksuite/global/utils';
-import { assertExists } from '@blocksuite/global/utils';
-import { LitElement, type TemplateResult, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { assertExists, Bound, WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement, nothing, type TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { EmbedCardStyle } from '../../../_common/types.js';
 import type {
@@ -22,9 +20,7 @@ import {
 } from '../../../_common/consts.js';
 import { getEmbedCardIcons } from '../../../_common/utils/url.js';
 import { downloadAttachmentBlob } from '../../../attachment-block/utils.js';
-import '../../edgeless/components/panel/card-style-panel.js';
 
-@customElement('edgeless-change-attachment-button')
 export class EdgelessChangeAttachmentButton extends WithDisposable(LitElement) {
   private _download = () => {
     if (!this._block) return;
@@ -84,6 +80,10 @@ export class EdgelessChangeAttachmentButton extends WithDisposable(LitElement) {
     ];
   }
 
+  get std() {
+    return this.edgeless.std;
+  }
+
   override render() {
     return html`
       <editor-menu-button
@@ -125,10 +125,6 @@ export class EdgelessChangeAttachmentButton extends WithDisposable(LitElement) {
         ${CaptionIcon}
       </editor-icon-button>
     `;
-  }
-
-  get std() {
-    return this.edgeless.std;
   }
 
   @property({ attribute: false })

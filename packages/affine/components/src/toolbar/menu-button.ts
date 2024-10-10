@@ -1,23 +1,18 @@
 import { PANEL_BASE } from '@blocksuite/affine-shared/styles';
 import { createButtonPopper } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import {
+  css,
+  html,
   LitElement,
   type PropertyValues,
   type TemplateResult,
-  css,
-  html,
 } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { property, query } from 'lit/decorators.js';
 
 import type { EditorIconButton } from './icon-button.js';
 
-import './icon-button.js';
-
-@customElement('editor-menu-button')
 export class EditorMenuButton extends WithDisposable(LitElement) {
-  private _popper!: ReturnType<typeof createButtonPopper>;
-
   static override styles = css`
     :host {
       display: flex;
@@ -26,6 +21,8 @@ export class EditorMenuButton extends WithDisposable(LitElement) {
       gap: 8px;
     }
   `;
+
+  private _popper!: ReturnType<typeof createButtonPopper>;
 
   override firstUpdated() {
     this._popper = createButtonPopper(
@@ -99,7 +96,6 @@ export class EditorMenuButton extends WithDisposable(LitElement) {
   accessor contentPadding: string | undefined = undefined;
 }
 
-@customElement('editor-menu-content')
 export class EditorMenuContent extends LitElement {
   static override styles = css`
     :host {
@@ -165,7 +161,6 @@ export class EditorMenuContent extends LitElement {
   }
 }
 
-@customElement('editor-menu-action')
 export class EditorMenuAction extends LitElement {
   static override styles = css`
     :host {

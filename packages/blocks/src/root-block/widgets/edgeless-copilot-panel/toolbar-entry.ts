@@ -1,16 +1,16 @@
+import type { EditorHost } from '@blocksuite/block-std';
+
 import { AIStarIcon } from '@blocksuite/affine-components/icons';
-import { type EditorHost, WithDisposable } from '@blocksuite/block-std';
-import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { AIItemGroupConfig } from '../../../_common/components/ai-item/types.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 import type { CopilotSelectionController } from '../../edgeless/tools/copilot-tool.js';
 
-import { SurfaceGroupLikeModel } from '../../../surface-block/element-model/base.js';
-import { isFrameBlock } from '../../edgeless/utils/query.js';
+import { getAllDescendantElements } from '../../edgeless/utils/tree.js';
 
-@customElement('edgeless-copilot-toolbar-entry')
 export class EdgelessCopilotToolbarEntry extends WithDisposable(LitElement) {
   static override styles = css`
     .copilot-icon-button {
@@ -26,13 +26,9 @@ export class EdgelessCopilotToolbarEntry extends WithDisposable(LitElement) {
     const selectedElements = this.edgeless.service.selection.selectedElements;
     const toBeSelected = new Set(selectedElements);
     selectedElements.forEach(element => {
-      if (isFrameBlock(element)) {
-        this.edgeless.service.frame
-          .getElementsInFrame(element)
-          .forEach(ele => toBeSelected.add(ele));
-      } else if (element instanceof SurfaceGroupLikeModel) {
-        element.descendants().forEach(ele => toBeSelected.add(ele));
-      }
+      getAllDescendantElements(element).forEach(descendant => {
+        toBeSelected.add(descendant);
+      });
     });
 
     this.edgeless.service.tool.setEdgelessTool({

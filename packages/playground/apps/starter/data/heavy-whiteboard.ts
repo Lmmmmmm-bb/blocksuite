@@ -1,12 +1,13 @@
 import type { SerializedXYWH } from '@blocksuite/global/utils';
 
+import { DEFAULT_ROUGHNESS } from '@blocksuite/affine-model';
 import {
   Boxed,
   type DocCollection,
-  Text,
-  type Y,
   nanoid,
   native2Y,
+  Text,
+  type Y,
 } from '@blocksuite/store';
 
 import type { InitFn } from './utils.js';
@@ -52,7 +53,7 @@ export const heavyWhiteboard: InitFn = (
           strokeWidth: 4,
           strokeColor: '--affine-palette-line-yellow',
           strokeStyle: 'solid',
-          roughness: 1.4,
+          roughness: DEFAULT_ROUGHNESS,
         },
         { deep: false }
       );

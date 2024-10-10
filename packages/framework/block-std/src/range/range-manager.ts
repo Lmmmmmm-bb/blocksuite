@@ -1,11 +1,11 @@
-import type { TextSelection } from '@blocksuite/block-std';
-
 import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
 import { INLINE_ROOT_ATTR, type InlineRootElement } from '@blocksuite/inline';
 
+import type { TextSelection } from '../selection/index.js';
 import type { BlockComponent } from '../view/element/block-component.js';
 
 import { LifeCycleWatcher } from '../extension/index.js';
+import { BLOCK_ID_ATTR } from '../view/index.js';
 import { RANGE_QUERY_EXCLUDE_ATTR, RANGE_SYNC_EXCLUDE_ATTR } from './consts.js';
 import { RangeBinding } from './range-binding.js';
 
@@ -16,6 +16,15 @@ export class RangeManager extends LifeCycleWatcher {
   static override readonly key = 'rangeManager';
 
   binding: RangeBinding | null = null;
+
+  get value() {
+    const selection = document.getSelection();
+    if (!selection) {
+      return;
+    }
+    if (selection.rangeCount === 0) return null;
+    return selection.getRangeAt(0);
+  }
 
   private _isRangeSyncExcluded(el: Element) {
     return !!el.closest(`[${RANGE_SYNC_EXCLUDE_ATTR}="true"]`);
@@ -40,7 +49,7 @@ export class RangeManager extends LifeCycleWatcher {
   getClosestBlock(node: Node) {
     const el = node instanceof Element ? node : node.parentElement;
     if (!el) return null;
-    const block = el.closest<BlockComponent>(`[${this.std.host.blockIdAttr}]`);
+    const block = el.closest<BlockComponent>(`[${BLOCK_ID_ATTR}]`);
     if (!block) return null;
     if (this._isRangeSyncExcluded(block)) return null;
     return block;
@@ -82,7 +91,7 @@ export class RangeManager extends LifeCycleWatcher {
 
     let result = Array.from<BlockComponent>(
       this.std.host.querySelectorAll(
-        `[${this.std.host.blockIdAttr}]:not([${RANGE_QUERY_EXCLUDE_ATTR}="true"])`
+        `[${BLOCK_ID_ATTR}]:not([${RANGE_QUERY_EXCLUDE_ATTR}="true"])`
       )
     ).filter(el => range.intersectsNode(el) && match(el));
 
@@ -249,14 +258,5 @@ export class RangeManager extends LifeCycleWatcher {
     range.setEnd(endContainer, endOffset);
 
     return range;
-  }
-
-  get value() {
-    const selection = document.getSelection();
-    if (!selection) {
-      return;
-    }
-    if (selection.rangeCount === 0) return null;
-    return selection.getRangeAt(0);
   }
 }

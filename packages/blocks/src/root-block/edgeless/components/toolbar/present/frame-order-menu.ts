@@ -1,16 +1,13 @@
 import type { FrameBlockModel } from '@blocksuite/affine-model';
 
-import { WithDisposable } from '@blocksuite/block-std';
-import { DisposableGroup } from '@blocksuite/global/utils';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { CommonUtils } from '@blocksuite/affine-block-surface';
+import { DisposableGroup, WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { EdgelessRootBlockComponent } from '../../../edgeless-root-block.js';
 
-import { generateKeyBetween } from '../../../../../surface-block/index.js';
-
-@customElement('edgeless-frame-order-menu')
 export class EdgelessFrameOrderMenu extends WithDisposable(LitElement) {
   static override styles = css`
     :host {
@@ -174,7 +171,7 @@ export class EdgelessFrameOrderMenu extends WithDisposable(LitElement) {
           const frame = this.frames[index];
 
           this.edgeless.service.updateElement(frame.id, {
-            index: generateKeyBetween(before, after),
+            index: CommonUtils.generateKeyBetween(before, after),
           });
           this.edgeless.doc.captureSync();
 

@@ -2,7 +2,6 @@ import { expect } from '@playwright/test';
 
 import { addNote, switchEditorMode } from './utils/actions/edgeless.js';
 import {
-  SHORT_KEY,
   pressArrowDown,
   pressArrowLeft,
   pressArrowRight,
@@ -14,6 +13,7 @@ import {
   pressShiftTab,
   pressTab,
   redoByKeyboard,
+  SHORT_KEY,
   type,
   undoByKeyboard,
 } from './utils/actions/keyboard.js';
@@ -22,6 +22,7 @@ import {
   enterPlaygroundRoom,
   focusRichText,
   getInlineSelectionText,
+  getPageSnapshot,
   getSelectionRect,
   initEmptyEdgelessState,
   initEmptyParagraphState,
@@ -50,11 +51,14 @@ test.describe('slash menu should show and hide correctly', () => {
     await expect(slashMenu).toBeVisible();
   });
 
-  test("slash menu should show when user input '、'", async ({ page }) => {
+  // Playwright dose not support IME
+  // https://github.com/microsoft/playwright/issues/5777
+  test.skip("slash menu should show when user input '、'", async ({ page }) => {
     await initEmptyParagraphState(page);
     const slashMenu = page.locator(`.slash-menu`);
     await focusRichText(page);
     await type(page, '、');
+
     await expect(slashMenu).toBeVisible();
   });
 
@@ -493,6 +497,19 @@ test.describe('slash menu should show and hide correctly', () => {
   });
 });
 
+test.describe('slash menu should not be shown in ignored blocks', () => {
+  test('code block', async ({ page }) => {
+    await enterPlaygroundRoom(page);
+    await initEmptyParagraphState(page);
+    await focusRichText(page);
+
+    await type(page, '```');
+    await pressEnter(page);
+    await type(page, '/');
+    await expect(page.locator('.slash-menu')).toBeHidden();
+  });
+});
+
 test('should slash menu works with fast type', async ({ page }) => {
   await enterPlaygroundRoom(page);
   await initEmptyParagraphState(page);
@@ -541,7 +558,7 @@ test.describe('slash search', () => {
 
     // search should active the first item
     await type(page, 'co');
-    await expect(slashItems).toHaveCount(2);
+    await expect(slashItems).toHaveCount(3);
     await expect(slashItems.nth(0).locator('.text')).toHaveText(['Copy']);
     await expect(slashItems.nth(1).locator('.text')).toHaveText(['Code Block']);
     await expect(slashItems.nth(0)).toHaveAttribute('hover', 'true');
@@ -552,7 +569,7 @@ test.describe('slash search', () => {
 
     // assert backspace works
     await pressBackspace(page);
-    await expect(slashItems).toHaveCount(2);
+    await expect(slashItems).toHaveCount(3);
     await expect(slashItems.nth(0).locator('.text')).toHaveText(['Copy']);
     await expect(slashItems.nth(1).locator('.text')).toHaveText(['Code Block']);
     await expect(slashItems.nth(0)).toHaveAttribute('hover', 'true');
@@ -570,7 +587,7 @@ test.describe('slash search', () => {
     await expect(slashMenu).toBeVisible();
 
     await type(page, 'c');
-    await expect(slashItems).toHaveCount(7);
+    await expect(slashItems).toHaveCount(8);
     await expect(slashItems.nth(0).locator('.text')).toHaveText(['Copy']);
     await expect(slashItems.nth(1).locator('.text')).toHaveText(['Italic']);
     await expect(slashItems.nth(2).locator('.text')).toHaveText(['New Doc']);
@@ -779,23 +796,6 @@ test('should insert database', async ({ page }) => {
   expect(await defaultRows.count()).toBe(4);
 });
 
-test.skip('should compatible CJK IME', async ({ page }) => {
-  await enterPlaygroundRoom(page);
-  await initEmptyParagraphState(page);
-  await focusRichText(page);
-
-  await type(page, '、');
-  const slashMenu = page.locator(`.slash-menu`);
-
-  // Fix playwright can not trigger keyboard event with target: '、'
-  test.fail();
-  await expect(slashMenu).toBeVisible();
-  await type(page, 'h2');
-  const slashItems = slashMenu.locator('icon-button');
-  await expect(slashItems).toHaveCount(1);
-  await expect(slashItems).toHaveText(['Heading 2']);
-});
-
 test.describe('slash menu with customize menu', () => {
   test('can remove specified menus', async ({ page }) => {
     await enterPlaygroundRoom(page);
@@ -955,9 +955,11 @@ test('move block up and down by slash menu', async ({ page }) => {
   await assertRichTexts(page, ['hello', 'world']);
 });
 
-test('delete block by slash menu should remove children', async ({ page }) => {
+test('delete block by slash menu should remove children', async ({
+  page,
+}, testInfo) => {
   await enterPlaygroundRoom(page);
-  const { noteId } = await initEmptyParagraphState(page);
+  await initEmptyParagraphState(page);
   await insertThreeLevelLists(page);
   const slashMenu = page.locator(`.slash-menu`);
   const slashItems = slashMenu.locator('icon-button');
@@ -971,34 +973,8 @@ test('delete block by slash menu should remove children', async ({ page }) => {
   await type(page, 'remove');
   await expect(slashItems).toHaveCount(1);
   await pressEnter(page);
-  await assertStoreMatchJSX(
-    page,
-    `
-<affine:note
-  prop:background="--affine-note-background-blue"
-  prop:displayMode="both"
-  prop:edgeless={
-    Object {
-      "style": Object {
-        "borderRadius": 0,
-        "borderSize": 4,
-        "borderStyle": "none",
-        "shadowType": "--affine-note-shadow-sticker",
-      },
-    }
-  }
-  prop:hidden={false}
-  prop:index="a0"
->
-  <affine:list
-    prop:checked={false}
-    prop:collapsed={false}
-    prop:order={null}
-    prop:text="123"
-    prop:type="bulleted"
-  />
-</affine:note>`,
-    noteId
+  expect(await getPageSnapshot(page, true)).toMatchSnapshot(
+    `${testInfo.title}.json`
   );
 
   await undoByKeyboard(page);

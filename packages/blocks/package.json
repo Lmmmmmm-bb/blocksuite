@@ -1,48 +1,55 @@
 {
   "name": "@blocksuite/blocks",
-  "version": "0.16.0",
+  "version": "0.17.18",
   "description": "Default BlockSuite editable blocks.",
   "type": "module",
-  "repository": "toeverything/blocksuite",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toeverything/blocksuite.git",
+    "directory": "packages/blocks"
+  },
   "scripts": {
     "build": "tsc",
     "test:unit": "nx vite:test --run",
     "test:unit:coverage": "nx vite:test --run --coverage",
     "test:e2e": "playwright test",
-    "test": "pnpm test:unit && pnpm test:e2e"
+    "test": "yarn test:unit && yarn test:e2e"
   },
+  "sideEffects": false,
   "keywords": [],
   "author": "toeverything",
   "license": "MPL-2.0",
   "dependencies": {
+    "@blocksuite/affine-block-embed": "workspace:*",
     "@blocksuite/affine-block-list": "workspace:*",
     "@blocksuite/affine-block-paragraph": "workspace:*",
+    "@blocksuite/affine-block-surface": "workspace:*",
     "@blocksuite/affine-components": "workspace:*",
     "@blocksuite/affine-model": "workspace:*",
     "@blocksuite/affine-shared": "workspace:*",
+    "@blocksuite/affine-widget-scroll-anchoring": "workspace:*",
     "@blocksuite/block-std": "workspace:*",
+    "@blocksuite/data-view": "workspace:*",
     "@blocksuite/global": "workspace:*",
-    "@blocksuite/icons": "^2.1.66",
+    "@blocksuite/icons": "^2.1.67",
     "@blocksuite/inline": "workspace:*",
     "@blocksuite/store": "workspace:*",
     "@floating-ui/dom": "^1.6.10",
-    "@lit-labs/preact-signals": "^1.0.2",
     "@lit/context": "^1.1.2",
-    "@toeverything/theme": "^1.0.7",
+    "@preact/signals-core": "^1.8.0",
+    "@toeverything/theme": "^1.0.8",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
     "@types/sortablejs": "^1.15.8",
     "collapse-white-space": "^2.1.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.0.0",
     "dompurify": "^3.1.6",
     "fflate": "^0.8.2",
-    "figma-squircle": "^0.3.1",
-    "file-type": "^19.4.1",
+    "file-type": "^19.5.0",
     "fractional-indexing": "^3.2.0",
     "html2canvas": "^1.4.1",
+    "katex": "^0.16.11",
     "lit": "^3.2.0",
-    "lodash.isplainobject": "^4.0.6",
-    "lodash.merge": "^4.6.2",
     "mdast-util-gfm-autolink-literal": "^2.0.1",
     "mdast-util-gfm-strikethrough": "^2.0.0",
     "mdast-util-gfm-table": "^2.0.0",
@@ -57,25 +64,25 @@
     "pdf-lib": "^1.17.1",
     "rehype-parse": "^9.0.0",
     "rehype-stringify": "^10.0.0",
+    "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
     "shiki": "^1.14.1",
+    "simple-xml-to-json": "^1.2.2",
     "sortablejs": "^1.15.2",
     "unified": "^11.0.5",
     "zod": "^3.23.8"
   },
   "exports": {
-    "./dist/*": "./dist/*",
     ".": "./src/index.ts",
-    "./schemas": "./src/schemas.ts"
+    "./schemas": "./src/schemas.ts",
+    "./effects": "./src/effects.ts"
   },
   "publishConfig": {
     "access": "public",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
-      "./dist/*": "./dist/*",
-      "./src/*": "./dist/*.js",
       ".": {
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js"
@@ -83,6 +90,10 @@
       "./schemas": {
         "types": "./dist/schemas.d.ts",
         "import": "./dist/schemas.js"
+      },
+      "./effects": {
+        "types": "./dist/effects.d.ts",
+        "import": "./dist/effects.js"
       }
     }
   },
@@ -96,7 +107,6 @@
   ],
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
-    "@types/lodash.isplainobject": "^4.0.9",
-    "@types/lodash.merge": "^4.6.9"
+    "@types/katex": "^0.16.7"
   }
 }

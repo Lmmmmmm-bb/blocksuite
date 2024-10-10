@@ -2,18 +2,14 @@ import {
   ArrowUpIcon,
   LargeFrameIcon,
 } from '@blocksuite/affine-components/icons';
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { EdgelessTool } from '../../../types.js';
 
 import { getTooltipWithShortcut } from '../../../components/utils.js';
-import '../../buttons/tool-icon-button.js';
 import { QuickToolMixin } from '../mixins/quick-tool.mixin.js';
-import './frame-menu.js';
 
-@customElement('edgeless-frame-tool-button')
 export class EdgelessFrameToolButton extends QuickToolMixin(LitElement) {
   static override styles = css`
     :host {

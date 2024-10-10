@@ -1,8 +1,7 @@
-import { type Page, expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { getLinkedDocPopover } from 'utils/actions/linked-doc.js';
 
 import {
-  SHORT_KEY,
   assertEdgelessTool,
   enterPlaygroundRoom,
   getEdgelessSelectedRect,
@@ -10,6 +9,7 @@ import {
   pressArrowLeft,
   pressEnter,
   setEdgelessTool,
+  SHORT_KEY,
   switchEditorMode,
   type,
   waitForInlineEditorStateUpdated,
@@ -199,6 +199,8 @@ test.describe('edgeless canvas text', () => {
 
     // select text element
     await page.mouse.click(150, 140);
+    await waitNextFrame(page);
+
     // should exit selected rect and record last width and height, then compare them
     let selectedRect = await getEdgelessSelectedRect(page);
     let lastWidth = selectedRect.width;
@@ -227,6 +229,8 @@ test.describe('edgeless canvas text', () => {
 
     // select text element
     await page.mouse.click(150, 140);
+    await waitNextFrame(page);
+
     // check selected rect and record the last width and height
     selectedRect = await getEdgelessSelectedRect(page);
     lastWidth = selectedRect.width;
@@ -268,6 +272,8 @@ test.describe('edgeless canvas text', () => {
 
     // select text element
     await page.mouse.click(150, 140);
+    await waitNextFrame(page);
+
     let selectedRect = await getEdgelessSelectedRect(page);
     let lastWidth = selectedRect.width;
     let lastHeight = selectedRect.height;
@@ -300,6 +306,8 @@ test.describe('edgeless canvas text', () => {
 
     // select text element
     await page.mouse.click(150, 140);
+    await waitNextFrame(page);
+
     // after input, the width of the text element should be the same as before, but the height should be changed
     selectedRect = await getEdgelessSelectedRect(page);
     expect(selectedRect.width).toBeCloseTo(Math.round(lastWidth));

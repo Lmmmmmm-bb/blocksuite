@@ -1,14 +1,14 @@
-import type { UIEventHandler } from '@blocksuite/block-std';
-import type { BlockComponent } from '@blocksuite/block-std';
+import type { BlockComponent, UIEventHandler } from '@blocksuite/block-std';
 import type { BlockSnapshot, Doc } from '@blocksuite/store';
 
-import { DisposableGroup, assertExists } from '@blocksuite/global/utils';
+import { assertExists, DisposableGroup } from '@blocksuite/global/utils';
 
 import {
   AttachmentAdapter,
   HtmlAdapter,
   ImageAdapter,
   MixTextAdapter,
+  NotionTextAdapter,
 } from '../../_common/adapters/index.js';
 import {
   defaultImageProxyMiddleware,
@@ -35,6 +35,11 @@ export class PageClipboard {
       ClipboardAdapter.MIME,
       ClipboardAdapter,
       100
+    );
+    this._std.clipboard.registerAdapter(
+      'text/_notion-text-production',
+      NotionTextAdapter,
+      95
     );
     this._std.clipboard.registerAdapter('text/html', HtmlAdapter, 90);
     [
@@ -175,12 +180,12 @@ export class PageClipboard {
       .run();
   };
 
-  constructor(host: BlockComponent) {
-    this.host = host;
-  }
-
   private get _std() {
     return this.host.std;
+  }
+
+  constructor(host: BlockComponent) {
+    this.host = host;
   }
 
   hostConnected() {

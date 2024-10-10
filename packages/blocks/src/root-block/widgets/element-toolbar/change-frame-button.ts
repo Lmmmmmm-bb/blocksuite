@@ -1,19 +1,22 @@
-import type { FrameBlockModel } from '@blocksuite/affine-model';
-
 import { NoteIcon, RenameIcon } from '@blocksuite/affine-components/icons';
 import { toast } from '@blocksuite/affine-components/toast';
 import { renderToolbarSeparator } from '@blocksuite/affine-components/toolbar';
-import { type ColorScheme, NoteDisplayMode } from '@blocksuite/affine-model';
+import {
+  type ColorScheme,
+  FRAME_BACKGROUND_COLORS,
+  type FrameBlockModel,
+  NoteDisplayMode,
+} from '@blocksuite/affine-model';
 import { matchFlavours } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
 import {
   countBy,
   deserializeXYWH,
   maxBy,
   serializeXYWH,
+  WithDisposable,
 } from '@blocksuite/global/utils';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { html, LitElement, nothing } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { join } from 'lit/directives/join.js';
 import { when } from 'lit/directives/when.js';
 
@@ -29,18 +32,6 @@ import {
 import { DEFAULT_NOTE_HEIGHT } from '../../edgeless/utils/consts.js';
 import { mountFrameTitleEditor } from '../../edgeless/utils/text.js';
 
-const FRAME_BACKGROUND = [
-  '--affine-tag-gray',
-  '--affine-tag-red',
-  '--affine-tag-orange',
-  '--affine-tag-yellow',
-  '--affine-tag-green',
-  '--affine-tag-teal',
-  '--affine-tag-blue',
-  '--affine-tag-purple',
-  '--affine-tag-pink',
-] as const;
-
 function getMostCommonColor(
   elements: FrameBlockModel[],
   colorScheme: ColorScheme
@@ -54,7 +45,6 @@ function getMostCommonColor(
   return max ? (max[0] as string) : null;
 }
 
-@customElement('edgeless-change-frame-button')
 export class EdgelessChangeFrameButton extends WithDisposable(LitElement) {
   pickColor = (event: PickColorEvent) => {
     if (event.type === 'pick') {
@@ -71,6 +61,10 @@ export class EdgelessChangeFrameButton extends WithDisposable(LitElement) {
       ele[event.type === 'start' ? 'stash' : 'pop']('background')
     );
   };
+
+  get service() {
+    return this.edgeless.service;
+  }
 
   private _insertIntoPage() {
     if (!this.edgeless.doc.root) return;
@@ -177,7 +171,7 @@ export class EdgelessChangeFrameButton extends WithDisposable(LitElement) {
                 .color=${background}
                 .colors=${colors}
                 .colorType=${type}
-                .palettes=${FRAME_BACKGROUND}
+                .palettes=${FRAME_BACKGROUND_COLORS}
               >
               </edgeless-color-picker-button>
             `;
@@ -198,7 +192,7 @@ export class EdgelessChangeFrameButton extends WithDisposable(LitElement) {
             >
               <edgeless-color-panel
                 .value=${background}
-                .options=${FRAME_BACKGROUND}
+                .options=${FRAME_BACKGROUND_COLORS}
                 @select=${(e: ColorEvent) => this._setFrameBackground(e.detail)}
               >
               </edgeless-color-panel>
@@ -208,10 +202,6 @@ export class EdgelessChangeFrameButton extends WithDisposable(LitElement) {
       ].filter(button => button !== nothing),
       renderToolbarSeparator
     );
-  }
-
-  get service() {
-    return this.edgeless.service;
   }
 
   @query('edgeless-color-picker-button.background')

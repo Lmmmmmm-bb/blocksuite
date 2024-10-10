@@ -1,18 +1,14 @@
-import { deserializeXYWH } from '@blocksuite/global/utils';
-import { Point } from '@blocksuite/global/utils';
-import { Bound } from '@blocksuite/global/utils';
-
-import type { SurfaceBlockComponent } from '../../../index.js';
 import type {
-  ConnectorElementModel,
+  SurfaceBlockComponent,
   SurfaceBlockModel,
-} from '../../../surface-block/index.js';
+} from '@blocksuite/affine-block-surface';
+import type { ConnectorElementModel } from '@blocksuite/affine-model';
+
+import { CommonUtils, Overlay } from '@blocksuite/affine-block-surface';
+import { Bound, deserializeXYWH, Point } from '@blocksuite/global/utils';
+
 import type { EdgelessRootService } from '../edgeless-root-service.js';
 
-import {
-  Overlay,
-  getBoundsWithRotation,
-} from '../../../surface-block/index.js';
 import { isConnectable, isTopLevelBlock } from '../utils/query.js';
 
 interface Distance {
@@ -54,6 +50,16 @@ export class EdgelessSnapManager extends Overlay {
     // FIXME: not sure why renderer can be undefined sometimes
     this._surface.renderer?.removeOverlay(this);
   };
+
+  private get _surface() {
+    const surfaceModel = this._rootService.doc.getBlockByFlavour(
+      'affine:surface'
+    )[0] as SurfaceBlockModel;
+
+    return this._rootService.std.view.getBlock(
+      surfaceModel.id
+    ) as SurfaceBlockComponent;
+  }
 
   constructor(private _rootService: EdgelessRootService) {
     super();
@@ -277,17 +283,9 @@ export class EdgelessSnapManager extends Overlay {
   ) {
     const rotate = isTopLevelBlock(alignable) ? 0 : alignable.rotate;
     const [x, y, w, h] = deserializeXYWH(alignable.xywh);
-    return Bound.from(getBoundsWithRotation({ x, y, w, h, rotate }));
-  }
-
-  private get _surface() {
-    const surfaceModel = this._rootService.doc.getBlockByFlavour(
-      'affine:surface'
-    )[0] as SurfaceBlockModel;
-
-    return this._rootService.std.view.getBlock(
-      surfaceModel.id
-    ) as SurfaceBlockComponent;
+    return Bound.from(
+      CommonUtils.getBoundsWithRotation({ x, y, w, h, rotate })
+    );
   }
 
   // Update X align point
@@ -422,7 +420,10 @@ export class EdgelessSnapManager extends Overlay {
     });
   }
 
-  setupAlignables(alignables: BlockSuite.EdgelessModel[]): Bound {
+  setupAlignables(
+    alignables: BlockSuite.EdgelessModel[],
+    exclude: BlockSuite.EdgelessModel[] = []
+  ): Bound {
     if (alignables.length === 0) return new Bound();
 
     const connectors = alignables.filter(isConnectable).reduce((prev, el) => {
@@ -439,7 +440,7 @@ export class EdgelessSnapManager extends Overlay {
     const viewportBounds = Bound.from(viewport.viewportBounds);
     this._surface.renderer.addOverlay(this);
     const canvasElements = this._rootService.elements;
-    const excludes = [...alignables, ...connectors];
+    const excludes = new Set([...alignables, ...exclude, ...connectors]);
     this._alignableBounds = [];
     (
       [
@@ -450,7 +451,7 @@ export class EdgelessSnapManager extends Overlay {
       const bounds = this._getBoundsWithRotationByAlignable(alignable);
       if (
         viewportBounds.isOverlapWithBound(bounds) &&
-        !excludes.includes(alignable)
+        !excludes.has(alignable)
       ) {
         this._alignableBounds.push(bounds);
       }

@@ -1,9 +1,9 @@
-import { type Page, expect } from '@playwright/test';
+import { DEFAULT_NOTE_BACKGROUND_COLOR } from '@blocksuite/affine-model';
+import { expect, type Page } from '@playwright/test';
 
 import { clickView, moveView } from '../utils/actions/click.js';
 import { dragBetweenCoords } from '../utils/actions/drag.js';
 import {
-  Shape,
   addNote,
   changeEdgelessNoteBackground,
   changeShapeFillColor,
@@ -13,6 +13,7 @@ import {
   dragBetweenViewCoords,
   edgelessCommonSetup,
   getEdgelessSelectedRectModel,
+  Shape,
   switchEditorMode,
   toViewCoord,
   triggerComponentToolbarAction,
@@ -163,7 +164,7 @@ test.describe('auto-complete', () => {
       await assertEdgelessNoteBackground(
         page,
         noteId,
-        '--affine-note-background-green'
+        DEFAULT_NOTE_BACKGROUND_COLOR
       );
 
       const rect = await edgelessNote.boundingBox();

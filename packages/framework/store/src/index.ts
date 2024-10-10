@@ -1,4 +1,3 @@
-/// <reference types="@blocksuite/global" preserve="true" />
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../shim.d.ts" />
 
@@ -10,9 +9,9 @@ export * from './schema/index.js';
 export * from './store/index.js';
 export * from './transformer/index.js';
 export {
-  type IdGenerator,
   createAutoIncrementIdGenerator,
   createAutoIncrementIdGeneratorByClientId,
+  type IdGenerator,
   nanoid,
   uuidv4,
 } from './utils/id-generator.js';
@@ -21,8 +20,6 @@ export * from './yjs/index.js';
 export { Slot } from '@blocksuite/global/utils';
 
 import type * as Y from 'yjs';
-
-import './utils/formatter.js';
 
 const env =
   typeof globalThis !== 'undefined'

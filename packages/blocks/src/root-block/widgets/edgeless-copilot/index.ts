@@ -15,7 +15,7 @@ import {
   size,
 } from '@floating-ui/dom';
 import { css, html, nothing } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { query, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { AIItemGroupConfig } from '../../../_common/components/ai-item/types.js';
@@ -28,19 +28,10 @@ import { EdgelessCopilotPanel } from '../edgeless-copilot-panel/index.js';
 
 export const AFFINE_EDGELESS_COPILOT_WIDGET = 'affine-edgeless-copilot-widget';
 
-@customElement(AFFINE_EDGELESS_COPILOT_WIDGET)
 export class EdgelessCopilotWidget extends WidgetComponent<
   RootBlockModel,
   EdgelessRootBlockComponent
 > {
-  private _clickOutsideOff: (() => void) | null = null;
-
-  private _copilotPanel!: EdgelessCopilotPanel | null;
-
-  private _listenClickOutsideId: number | null = null;
-
-  private _selectionModelRect!: DOMRect;
-
   static override styles = css`
     .copilot-selection-rect {
       position: absolute;
@@ -50,7 +41,39 @@ export class EdgelessCopilotWidget extends WidgetComponent<
     }
   `;
 
+  private _clickOutsideOff: (() => void) | null = null;
+
+  private _copilotPanel!: EdgelessCopilotPanel | null;
+
+  private _listenClickOutsideId: number | null = null;
+
+  private _selectionModelRect!: DOMRect;
+
   groups: AIItemGroupConfig[] = [];
+
+  get edgeless() {
+    return this.block;
+  }
+
+  get selectionModelRect() {
+    return this._selectionModelRect;
+  }
+
+  get selectionRect() {
+    return this._selectionRect;
+  }
+
+  get visible() {
+    return !!(
+      this._visible &&
+      this._selectionRect.width &&
+      this._selectionRect.height
+    );
+  }
+
+  set visible(visible: boolean) {
+    this._visible = visible;
+  }
 
   private _showCopilotPanel() {
     requestConnectedFrame(() => {
@@ -247,30 +270,6 @@ export class EdgelessCopilotWidget extends WidgetComponent<
         })}
       ></div>
     </div>`;
-  }
-
-  get edgeless() {
-    return this.block;
-  }
-
-  get selectionModelRect() {
-    return this._selectionModelRect;
-  }
-
-  get selectionRect() {
-    return this._selectionRect;
-  }
-
-  get visible() {
-    return !!(
-      this._visible &&
-      this._selectionRect.width &&
-      this._selectionRect.height
-    );
-  }
-
-  set visible(visible: boolean) {
-    this._visible = visible;
   }
 
   @state()

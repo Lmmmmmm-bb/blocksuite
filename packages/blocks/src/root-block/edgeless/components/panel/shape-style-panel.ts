@@ -3,8 +3,8 @@ import {
   ScribbledStyleIcon,
 } from '@blocksuite/affine-components/icons';
 import { ShapeStyle } from '@blocksuite/affine-model';
-import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 const SHAPE_STYLE_LIST = [
@@ -18,7 +18,6 @@ const SHAPE_STYLE_LIST = [
   },
 ];
 
-@customElement('edgeless-shape-style-panel')
 export class EdgelessShapeStylePanel extends LitElement {
   static override styles = css`
     :host {

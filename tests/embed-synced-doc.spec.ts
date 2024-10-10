@@ -1,7 +1,7 @@
 import type { DatabaseBlockModel } from '@blocksuite/affine-model';
 
-import { assertExists } from '@global/utils.js';
-import { type Page, expect } from '@playwright/test';
+import { assertExists } from '@blocksuite/global/utils';
+import { expect, type Page } from '@playwright/test';
 import { switchEditorMode, zoomOutByKeyboard } from 'utils/actions/edgeless.js';
 import { getLinkedDocPopover } from 'utils/actions/linked-doc.js';
 import {
@@ -245,7 +245,7 @@ test.describe('Embed synced doc', () => {
         if (databaseService) {
           databaseService.databaseViewInitEmpty(
             model,
-            databaseService.viewPresets.tableViewConfig
+            databaseService.viewPresets.tableViewMeta.type
           );
           databaseService.applyColumnUpdate(model);
         }

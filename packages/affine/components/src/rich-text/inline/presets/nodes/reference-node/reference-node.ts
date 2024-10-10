@@ -1,14 +1,13 @@
-import type { ReferenceInfo, RootBlockModel } from '@blocksuite/affine-model';
-import type { BlockComponent } from '@blocksuite/block-std';
+import type { ReferenceInfo } from '@blocksuite/affine-model';
 import type { Doc, DocMeta } from '@blocksuite/store';
 
-import { BLOCK_ID_ATTR } from '@blocksuite/affine-shared/consts';
 import {
-  getModelByElement,
-  getRootByElement,
-} from '@blocksuite/affine-shared/utils';
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
+  BLOCK_ID_ATTR,
+  type BlockComponent,
+  ShadowlessElement,
+} from '@blocksuite/block-std';
 import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
+import { WithDisposable } from '@blocksuite/global/utils';
 import {
   type DeltaInsert,
   INLINE_ROOT_ATTR,
@@ -17,13 +16,12 @@ import {
   ZERO_WIDTH_SPACE,
 } from '@blocksuite/inline';
 import { css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { choose } from 'lit/directives/choose.js';
 import { ref } from 'lit/directives/ref.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
-import type { AffineTextAttributes } from '../../affine-inline-specs.js';
-import type { ReferenceNodeConfig } from './reference-config.js';
-import type { RefNodeSlots } from './types.js';
+import type { ReferenceNodeConfigProvider } from './reference-config.js';
 
 import { HoverController } from '../../../../../hover/index.js';
 import {
@@ -32,17 +30,45 @@ import {
   FontLinkedDocIcon,
 } from '../../../../../icons/index.js';
 import { Peekable } from '../../../../../peek/index.js';
+import {
+  type AffineTextAttributes,
+  RefNodeSlotsProvider,
+} from '../../../../extension/index.js';
 import { affineTextStyles } from '../affine-text.js';
 import { DEFAULT_DOC_NAME, REFERENCE_NODE } from '../consts.js';
 import { toggleReferencePopup } from './reference-popup.js';
 
-@customElement('affine-reference')
 @Peekable({ action: false })
 export class AffineReference extends WithDisposable(ShadowlessElement) {
-  private _refAttribute: NonNullable<AffineTextAttributes['reference']> = {
-    type: 'LinkedPage',
-    pageId: '0',
-  };
+  static override styles = css`
+    .affine-reference {
+      white-space: normal;
+      word-break: break-word;
+      color: var(--affine-text-primary-color);
+      fill: var(--affine-icon-color);
+      border-radius: 4px;
+      text-decoration: none;
+      cursor: pointer;
+      user-select: none;
+      padding: 1px 2px 1px 0;
+    }
+    .affine-reference:hover {
+      background: var(--affine-hover-color);
+    }
+
+    .affine-reference[data-selected='true'] {
+      background: var(--affine-hover-color);
+    }
+
+    .affine-reference-title {
+      margin-left: 4px;
+      border-bottom: 0.5px solid var(--affine-divider-color);
+      transition: border 0.2s ease-out;
+    }
+    .affine-reference-title:hover {
+      border-bottom: 0.5px solid var(--affine-icon-color);
+    }
+  `;
 
   private _updateRefMeta = (doc: Doc) => {
     const refAttribute = this.delta.attributes?.reference;
@@ -50,7 +76,6 @@ export class AffineReference extends WithDisposable(ShadowlessElement) {
       return;
     }
 
-    this._refAttribute = refAttribute;
     const refMeta = doc.collection.meta.docMetas.find(
       doc => doc.id === refAttribute.pageId
     );
@@ -102,55 +127,75 @@ export class AffineReference extends WithDisposable(ShadowlessElement) {
     { enterDelay: 500 }
   );
 
-  static override styles = css`
-    .affine-reference {
-      white-space: normal;
-      word-break: break-word;
-      color: var(--affine-text-primary-color);
-      fill: var(--affine-icon-color);
-      border-radius: 4px;
-      text-decoration: none;
-      cursor: pointer;
-      user-select: none;
-      padding: 1px 2px 1px 0;
-    }
-    .affine-reference:hover {
-      background: var(--affine-hover-color);
-    }
+  get block() {
+    const block = this.inlineEditor?.rootElement.closest<BlockComponent>(
+      `[${BLOCK_ID_ATTR}]`
+    );
+    return block;
+  }
 
-    .affine-reference[data-selected='true'] {
-      background: var(--affine-hover-color);
-    }
+  get customContent() {
+    return this.config.customContent;
+  }
 
-    .affine-reference-title {
-      margin-left: 4px;
-      border-bottom: 0.5px solid var(--affine-divider-color);
-      transition: border 0.2s ease-out;
+  get customIcon() {
+    return this.config.customIcon;
+  }
+
+  get customTitle() {
+    return this.config.customTitle;
+  }
+
+  get doc() {
+    const doc = this.config.doc;
+    return doc;
+  }
+
+  get inlineEditor() {
+    const inlineRoot = this.closest<InlineRootElement<AffineTextAttributes>>(
+      `[${INLINE_ROOT_ATTR}]`
+    );
+    return inlineRoot?.inlineEditor;
+  }
+
+  get referenceInfo(): ReferenceInfo {
+    const reference = this.delta.attributes?.reference;
+    const id = this.doc?.id ?? '';
+    if (!reference) return { pageId: id };
+
+    const { pageId, params } = reference;
+    const info: ReferenceInfo = { pageId };
+    if (!params) return info;
+
+    const { mode, blockIds, elementIds } = params;
+    info.params = {};
+    if (mode) info.params.mode = mode;
+    if (blockIds?.length) info.params.blockIds = [...blockIds];
+    if (elementIds?.length) info.params.elementIds = [...elementIds];
+    return info;
+  }
+
+  get selfInlineRange() {
+    const selfInlineRange = this.inlineEditor?.getInlineRangeFromElement(this);
+    return selfInlineRange;
+  }
+
+  get std() {
+    const std = this.block?.std;
+    if (!std) {
+      throw new BlockSuiteError(
+        ErrorCode.ValueNotExists,
+        'std not found in reference node'
+      );
     }
-    .affine-reference-title:hover {
-      border-bottom: 0.5px solid var(--affine-icon-color);
-    }
-  `;
+    return std;
+  }
 
   private _onClick() {
     if (!this.config.interactable) return;
-
-    const refMeta = this.refMeta;
-    const model = getModelByElement(this);
-    if (!refMeta) {
-      // The doc is deleted
-      console.warn('The doc is deleted', this._refAttribute.pageId);
-      return;
-    }
-    if (!model || refMeta.id === model.doc.id) {
-      // the doc is the current doc.
-      return;
-    }
-    const targetDocId = refMeta.id;
-    const rootComponent = getRootByElement(
-      this
-    ) as BlockComponent<RootBlockModel> & { slots: RefNodeSlots };
-    rootComponent.slots.docLinkClicked.emit({ pageId: targetDocId });
+    this.std
+      .getOptional(RefNodeSlotsProvider)
+      ?.docLinkClicked.emit(this.referenceInfo);
   }
 
   override connectedCallback() {
@@ -188,13 +233,9 @@ export class AffineReference extends WithDisposable(ShadowlessElement) {
 
   // linking block/element
   isLinkedNode() {
-    const reference = this.delta.attributes?.reference;
-    if (!reference?.params) return false;
-    const { mode, blockIds, elementIds } = reference.params;
-    if (!mode) return false;
-    if (blockIds && blockIds.length > 0) return true;
-    if (elementIds && elementIds.length > 0) return true;
-    return false;
+    return Boolean(
+      this.referenceInfo.params && Object.keys(this.referenceInfo.params).length
+    );
   }
 
   override render() {
@@ -250,7 +291,7 @@ export class AffineReference extends WithDisposable(ShadowlessElement) {
       ${this.config.interactable ? ref(this._whenHover.setReference) : ''}
       data-selected=${this.selected}
       class="affine-reference"
-      style=${style}
+      style=${styleMap(style)}
       @click=${this._onClick}
       >${content}<v-text .str=${ZERO_WIDTH_NON_JOINER}></v-text
     ></span>`;
@@ -265,72 +306,8 @@ export class AffineReference extends WithDisposable(ShadowlessElement) {
     }
   }
 
-  get block() {
-    const block = this.inlineEditor?.rootElement.closest<BlockComponent>(
-      `[${BLOCK_ID_ATTR}]`
-    );
-    return block;
-  }
-
-  get customContent() {
-    return this.config.customContent;
-  }
-
-  get customIcon() {
-    return this.config.customIcon;
-  }
-
-  get customTitle() {
-    return this.config.customTitle;
-  }
-
-  get doc() {
-    const doc = this.config.doc;
-    return doc;
-  }
-
-  get inlineEditor() {
-    const inlineRoot = this.closest<InlineRootElement<AffineTextAttributes>>(
-      `[${INLINE_ROOT_ATTR}]`
-    );
-    return inlineRoot?.inlineEditor;
-  }
-
-  get referenceInfo(): ReferenceInfo {
-    const reference = this.delta.attributes?.reference;
-    const id = this.doc?.id;
-    if (!reference) return { pageId: id ?? '' };
-
-    const { pageId, params } = reference;
-    const info: ReferenceInfo = { pageId };
-    if (!params) return info;
-
-    const { mode, blockIds, elementIds } = params;
-    info.params = {};
-    if (mode) info.params.mode = mode;
-    if (blockIds?.length) info.params.blockIds = [...blockIds];
-    if (elementIds?.length) info.params.elementIds = [...elementIds];
-    return info;
-  }
-
-  get selfInlineRange() {
-    const selfInlineRange = this.inlineEditor?.getInlineRangeFromElement(this);
-    return selfInlineRange;
-  }
-
-  get std() {
-    const std = this.block?.std;
-    if (!std) {
-      throw new BlockSuiteError(
-        ErrorCode.ValueNotExists,
-        'std not found in reference node'
-      );
-    }
-    return std;
-  }
-
   @property({ attribute: false })
-  accessor config!: ReferenceNodeConfig;
+  accessor config!: ReferenceNodeConfigProvider;
 
   @property({ type: Object })
   accessor delta: DeltaInsert<AffineTextAttributes> = {
@@ -344,10 +321,4 @@ export class AffineReference extends WithDisposable(ShadowlessElement) {
 
   @property({ type: Boolean })
   accessor selected = false;
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'affine-reference': AffineReference;
-  }
 }

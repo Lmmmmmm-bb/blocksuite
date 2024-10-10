@@ -3,19 +3,21 @@ import {
   ConnectorLWithArrowIcon,
   ConnectorXWithArrowIcon,
 } from '@blocksuite/affine-components/icons';
-import { DEFAULT_CONNECTOR_COLOR } from '@blocksuite/affine-model';
+import {
+  ConnectorMode,
+  DEFAULT_CONNECTOR_COLOR,
+} from '@blocksuite/affine-model';
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { SignalWatcher, computed } from '@lit-labs/preact-signals';
-import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { SignalWatcher } from '@blocksuite/global/utils';
+import { computed } from '@preact/signals-core';
+import { css, html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { EdgelessTool } from '../../../types.js';
 import type { ColorEvent } from '../../panel/color-panel.js';
 import type { LineWidthEvent } from '../../panel/line-width-panel.js';
 
-import { ConnectorMode } from '../../../../../surface-block/index.js';
-import '../../panel/one-row-color-panel.js';
-import '../common/slide-menu.js';
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
 
 function ConnectorModeButtonGroup(
@@ -57,16 +59,9 @@ function ConnectorModeButtonGroup(
   `;
 }
 
-@customElement('edgeless-connector-menu')
 export class EdgelessConnectorMenu extends EdgelessToolbarToolMixin(
   SignalWatcher(LitElement)
 ) {
-  private _props$ = computed(() => {
-    const { mode, stroke, strokeWidth } =
-      this.edgeless.service.editPropsStore.lastProps$.value.connector;
-    return { mode, stroke, strokeWidth };
-  });
-
   static override styles = css`
     :host {
       position: absolute;
@@ -100,6 +95,12 @@ export class EdgelessConnectorMenu extends EdgelessToolbarToolMixin(
       display: inline-block;
     }
   `;
+
+  private _props$ = computed(() => {
+    const { mode, stroke, strokeWidth } =
+      this.edgeless.std.get(EditPropsStore).lastProps$.value.connector;
+    return { mode, stroke, strokeWidth };
+  });
 
   override type: EdgelessTool['type'] = 'connector';
 

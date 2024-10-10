@@ -1,14 +1,11 @@
 import type { Placement } from '@floating-ui/dom';
 import type { TemplateResult } from 'lit';
 
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 import { cache } from 'lit/directives/cache.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import './tooltip.js';
-
-@customElement('editor-icon-button')
 export class EditorIconButton extends LitElement {
   static override styles = css`
     :host([disabled]),

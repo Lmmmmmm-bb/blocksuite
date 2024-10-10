@@ -1,23 +1,3 @@
-export {
-  InlineManager,
-  type InlineMarkdownMatch,
-  type InlineMarkdownMatchAction,
-  type InlineSpecs,
-} from './inline-manager.js';
-export {
-  type AffineInlineEditor,
-  type AffineInlineRootElement,
-  type AffineTextAttributes,
-  basicAffineInlineSpecs,
-  getAffineInlineSpecsWithReference,
-} from './presets/affine-inline-specs.js';
-export { affineInlineMarkdownMatches } from './presets/markdown.js';
-export {
-  AffineLink,
-  AffineReference,
-  DEFAULT_DOC_NAME,
-  REFERENCE_NODE,
-  type RefNodeSlots,
-  ReferenceNodeConfig,
-  toggleLinkPopup,
-} from './presets/nodes/index.js';
+export * from './presets/affine-inline-specs.js';
+export * from './presets/markdown.js';
+export * from './presets/nodes/index.js';

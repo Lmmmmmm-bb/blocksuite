@@ -1,7 +1,7 @@
 import type { EdgelessTextBlockComponent } from '@blocks/edgeless-text-block/edgeless-text-block.js';
 
 import { Bound } from '@blocksuite/global/utils';
-import { type Page, expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import {
   captureHistory,
@@ -360,37 +360,37 @@ test.describe('edgeless text block', () => {
     await page.mouse.click(0, 0);
     // select text element
     await page.mouse.click(130, 140);
-    const selectedRect = await getEdgelessSelectedRect(page);
+    const selectedRect0 = await getEdgelessSelectedRect(page);
 
     // from right to left
     await page.mouse.move(
-      selectedRect.x + selectedRect.width,
-      selectedRect.y + selectedRect.height / 2
+      selectedRect0.x + selectedRect0.width,
+      selectedRect0.y + selectedRect0.height / 2
     );
     await page.mouse.down();
     await page.mouse.move(
-      selectedRect.x + selectedRect.width - 45,
-      selectedRect.y + selectedRect.height / 2,
+      selectedRect0.x,
+      selectedRect0.y + selectedRect0.height / 2,
       {
         steps: 10,
       }
     );
     await page.mouse.up();
 
-    // not changed
     expect(await getPageSnapshot(page, true)).toMatchSnapshot(
-      `${testInfo.title}_link_to_card.json`
+      `${testInfo.title}_link_to_card_min_width.json`
     );
 
+    const selectedRect1 = await getEdgelessSelectedRect(page);
     // from left to right
     await page.mouse.move(
-      selectedRect.x + selectedRect.width,
-      selectedRect.y + selectedRect.height / 2
+      selectedRect1.x + selectedRect1.width,
+      selectedRect1.y + selectedRect1.height / 2
     );
     await page.mouse.down();
     await page.mouse.move(
-      selectedRect.x + selectedRect.width + 45,
-      selectedRect.y + selectedRect.height / 2,
+      selectedRect0.x + selectedRect0.width + 45,
+      selectedRect1.y + selectedRect1.height / 2,
       {
         steps: 10,
       }
@@ -401,4 +401,54 @@ test.describe('edgeless text block', () => {
       `${testInfo.title}_drag.json`
     );
   });
+});
+
+test('press backspace at the start of first line when edgeless text exist', async ({
+  page,
+}, testInfo) => {
+  await enterPlaygroundRoom(page, {
+    flags: {
+      enable_edgeless_text: true,
+    },
+  });
+  await page.evaluate(() => {
+    const { doc } = window;
+    const rootId = doc.addBlock('affine:page', {
+      title: new doc.Text(),
+    });
+    doc.addBlock('affine:surface', {}, rootId);
+    doc.addBlock('affine:note', {}, rootId);
+
+    // do not add paragraph block
+
+    doc.resetHistory();
+  });
+  await switchEditorMode(page);
+
+  await setEdgelessTool(page, 'default');
+  await page.mouse.dblclick(130, 140, {
+    delay: 100,
+  });
+  await waitNextFrame(page);
+  await type(page, 'aaa');
+
+  await switchEditorMode(page);
+
+  expect(await getPageSnapshot(page, true)).toMatchSnapshot(
+    `${testInfo.title}_note_empty.json`
+  );
+
+  await page.locator('.affine-page-root-block-container').click();
+  expect(await getPageSnapshot(page, true)).toMatchSnapshot(
+    `${testInfo.title}_note_not_empty.json`
+  );
+
+  await type(page, 'bbb');
+  await pressArrowLeft(page, 3);
+  await pressBackspace(page);
+  await waitNextFrame(page);
+
+  expect(await getPageSnapshot(page, true)).toMatchSnapshot(
+    `${testInfo.title}_finial.json`
+  );
 });

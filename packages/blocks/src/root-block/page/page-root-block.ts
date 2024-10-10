@@ -13,7 +13,7 @@ import {
 } from '@blocksuite/affine-shared/utils';
 import { BlockComponent } from '@blocksuite/block-std';
 import { css, html } from 'lit';
-import { customElement, query } from 'lit/decorators.js';
+import { query } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { PageRootBlockWidgetName } from '../index.js';
@@ -46,14 +46,11 @@ function testClickOnBlankArea(
   return false;
 }
 
-@customElement('affine-page-root')
 export class PageRootBlockComponent extends BlockComponent<
   RootBlockModel,
   PageRootService,
   PageRootBlockWidgetName
 > {
-  private _viewportElement: HTMLDivElement | null = null;
-
   static override styles = css`
     editor-host:has(> affine-page-root, * > affine-page-root) {
       display: block;
@@ -109,6 +106,8 @@ export class PageRootBlockComponent extends BlockComponent<
     }
   `;
 
+  private _viewportElement: HTMLDivElement | null = null;
+
   clipboardController = new PageClipboard(this);
 
   focusFirstParagraph = () => {
@@ -140,6 +139,47 @@ export class PageRootBlockComponent extends BlockComponent<
     );
     focusTextModel(this.std, newFirstParagraphId);
   };
+
+  get rootScrollContainer() {
+    return getScrollContainer(this);
+  }
+
+  get slots() {
+    return this.service.slots;
+  }
+
+  get viewport(): Viewport | null {
+    if (!this.viewportElement) {
+      return null;
+    }
+    const {
+      scrollLeft,
+      scrollTop,
+      scrollWidth,
+      scrollHeight,
+      clientWidth,
+      clientHeight,
+    } = this.viewportElement;
+    const { top, left } = this.viewportElement.getBoundingClientRect();
+    return {
+      top,
+      left,
+      scrollLeft,
+      scrollTop,
+      scrollWidth,
+      scrollHeight,
+      clientWidth,
+      clientHeight,
+    };
+  }
+
+  get viewportElement(): HTMLDivElement | null {
+    if (this._viewportElement) return this._viewportElement;
+    this._viewportElement = this.host.closest(
+      '.affine-page-viewport'
+    ) as HTMLDivElement | null;
+    return this._viewportElement;
+  }
 
   private _createDefaultNoteBlock() {
     const { doc } = this;
@@ -373,70 +413,24 @@ export class PageRootBlockComponent extends BlockComponent<
   }
 
   override renderBlock() {
-    const content = html`${repeat(
-      this.model.children.filter(child => {
-        const isNote = matchFlavours(child, ['affine:note']);
-        const note = child as NoteBlockModel;
-        const displayOnEdgeless =
-          !!note.displayMode &&
-          note.displayMode === NoteDisplayMode.EdgelessOnly;
-        // Should remove deprecated `hidden` property in the future
-        return !(isNote && displayOnEdgeless);
-      }),
-      child => child.id,
-      child => this.host.renderModel(child)
-    )}`;
-
     const widgets = html`${repeat(
       Object.entries(this.widgets),
       ([id]) => id,
       ([_, widget]) => widget
     )}`;
 
+    const children = this.renderChildren(this.model, child => {
+      const isNote = matchFlavours(child, ['affine:note']);
+      const note = child as NoteBlockModel;
+      const displayOnEdgeless =
+        !!note.displayMode && note.displayMode === NoteDisplayMode.EdgelessOnly;
+      // Should remove deprecated `hidden` property in the future
+      return !(isNote && displayOnEdgeless);
+    });
+
     return html`
-      <div class="affine-page-root-block-container">${content} ${widgets}</div>
+      <div class="affine-page-root-block-container">${children} ${widgets}</div>
     `;
-  }
-
-  get rootScrollContainer() {
-    return getScrollContainer(this);
-  }
-
-  get slots() {
-    return this.service.slots;
-  }
-
-  get viewport(): Viewport | null {
-    if (!this.viewportElement) {
-      return null;
-    }
-    const {
-      scrollLeft,
-      scrollTop,
-      scrollWidth,
-      scrollHeight,
-      clientWidth,
-      clientHeight,
-    } = this.viewportElement;
-    const { top, left } = this.viewportElement.getBoundingClientRect();
-    return {
-      top,
-      left,
-      scrollLeft,
-      scrollTop,
-      scrollWidth,
-      scrollHeight,
-      clientWidth,
-      clientHeight,
-    };
-  }
-
-  get viewportElement(): HTMLDivElement | null {
-    if (this._viewportElement) return this._viewportElement;
-    this._viewportElement = this.host.closest(
-      '.affine-page-viewport'
-    ) as HTMLDivElement | null;
-    return this._viewportElement;
   }
 
   @query('.affine-page-root-block-container')

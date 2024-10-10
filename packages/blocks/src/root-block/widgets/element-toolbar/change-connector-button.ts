@@ -20,15 +20,19 @@ import {
 import { renderToolbarSeparator } from '@blocksuite/affine-components/toolbar';
 import {
   type ColorScheme,
+  type ConnectorElementModel,
   type ConnectorElementProps,
+  ConnectorEndpoint,
   type ConnectorLabelProps,
+  ConnectorMode,
+  DEFAULT_FRONT_END_POINT_STYLE,
+  DEFAULT_REAR_END_POINT_STYLE,
   PointStyle,
 } from '@blocksuite/affine-model';
 import { LINE_COLORS, LineWidth, StrokeStyle } from '@blocksuite/affine-model';
-import { WithDisposable } from '@blocksuite/block-std';
-import { countBy, maxBy } from '@blocksuite/global/utils';
-import { LitElement, type TemplateResult, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { countBy, maxBy, WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement, nothing, type TemplateResult } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { choose } from 'lit/directives/choose.js';
 import { join } from 'lit/directives/join.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -40,17 +44,9 @@ import type { PickColorEvent } from '../../edgeless/components/color-picker/type
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 
 import {
-  type ConnectorElementModel,
-  ConnectorEndpoint,
-  ConnectorMode,
-  DEFAULT_FRONT_END_POINT_STYLE,
-  DEFAULT_REAR_END_POINT_STYLE,
-} from '../../../surface-block/index.js';
-import {
   packColor,
   packColorsWithColorScheme,
 } from '../../edgeless/components/color-picker/utils.js';
-import '../../edgeless/components/panel/color-panel.js';
 import {
   type ColorEvent,
   GET_DEFAULT_LINE_COLOR,
@@ -59,9 +55,7 @@ import {
   type LineStyleEvent,
   LineStylesPanel,
 } from '../../edgeless/components/panel/line-styles-panel.js';
-import '../../edgeless/components/panel/stroke-style-panel.js';
 import { mountConnectorLabelEditor } from '../../edgeless/utils/text.js';
-import './change-text-menu.js';
 
 function getMostCommonColor(
   elements: ConnectorElementModel[],
@@ -226,7 +220,6 @@ const MODE_CHOOSE: [ConnectorMode, () => TemplateResult<1>][] = [
   [ConnectorMode.Straight, () => ConnectorLWithArrowIcon],
 ] as const;
 
-@customElement('edgeless-change-connector-button')
 export class EdgelessChangeConnectorButton extends WithDisposable(LitElement) {
   pickColor = (event: PickColorEvent) => {
     if (event.type === 'pick') {
@@ -243,6 +236,14 @@ export class EdgelessChangeConnectorButton extends WithDisposable(LitElement) {
       ele[event.type === 'start' ? 'stash' : 'pop']('stroke')
     );
   };
+
+  get doc() {
+    return this.edgeless.doc;
+  }
+
+  get service() {
+    return this.edgeless.service;
+  }
 
   private _addLabel() {
     mountConnectorLabelEditor(this.elements[0], this.edgeless);
@@ -595,14 +596,6 @@ export class EdgelessChangeConnectorButton extends WithDisposable(LitElement) {
       ].filter(button => button !== nothing),
       renderToolbarSeparator
     );
-  }
-
-  get doc() {
-    return this.edgeless.doc;
-  }
-
-  get service() {
-    return this.edgeless.service;
   }
 
   @property({ attribute: false })

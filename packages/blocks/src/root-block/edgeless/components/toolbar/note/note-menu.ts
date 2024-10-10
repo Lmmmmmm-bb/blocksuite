@@ -1,24 +1,22 @@
 import { AttachmentIcon, LinkIcon } from '@blocksuite/affine-components/icons';
-import { LitElement, css, html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
+import { css, html, LitElement } from 'lit';
+import { property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { NoteTool } from '../../../tools/note-tool.js';
 import type { EdgelessTool } from '../../../types.js';
 
 import {
-  type NoteChildrenFlavour,
   getImageFilesFromLocal,
+  type NoteChildrenFlavour,
   openFileOrFiles,
 } from '../../../../../_common/utils/index.js';
 import { ImageIcon } from '../../../../../image-block/styles.js';
-import '../../buttons/tool-icon-button.js';
 import { getTooltipWithShortcut } from '../../utils.js';
-import '../common/slide-menu.js';
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
 import { NOTE_MENU_ITEMS } from './note-menu-config.js';
 
-@customElement('edgeless-note-menu')
 export class EdgelessNoteMenu extends EdgelessToolbarToolMixin(LitElement) {
   static override styles = css`
     :host {
@@ -71,22 +69,17 @@ export class EdgelessNoteMenu extends EdgelessToolbarToolMixin(LitElement) {
 
     insertedLinkType
       ?.then(type => {
-        if (type) {
-          this.edgeless.service.telemetryService?.track('CanvasElementAdded', {
+        const flavour = type?.flavour;
+        if (!flavour) return;
+
+        this.edgeless.std
+          .getOptional(TelemetryProvider)
+          ?.track('CanvasElementAdded', {
             control: 'toolbar:general',
             page: 'whiteboard editor',
             module: 'toolbar',
-            type: type.flavour?.split(':')[1],
+            type: flavour.split(':')[1],
           });
-          if (type.isNewDoc) {
-            this.edgeless.service.telemetryService?.track('DocCreated', {
-              control: 'toolbar:general',
-              page: 'whiteboard editor',
-              module: 'edgeless toolbar',
-              type: type.flavour?.split(':')[1],
-            });
-          }
-        }
       })
       .catch(console.error);
   }
@@ -141,16 +134,15 @@ export class EdgelessNoteMenu extends EdgelessToolbarToolMixin(LitElement) {
                 if (!file) return;
                 await this.edgeless.addAttachments([file]);
                 this.edgeless.service.tool.setEdgelessTool({ type: 'default' });
-                this.edgeless.service.telemetryService?.track(
-                  'CanvasElementAdded',
-                  {
+                this.edgeless.std
+                  .getOptional(TelemetryProvider)
+                  ?.track('CanvasElementAdded', {
                     control: 'toolbar:general',
                     page: 'whiteboard editor',
                     module: 'toolbar',
                     segment: 'toolbar',
                     type: 'attachment',
-                  }
-                );
+                  });
               }}
             >
               ${AttachmentIcon}

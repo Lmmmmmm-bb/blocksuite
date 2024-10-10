@@ -5,7 +5,6 @@ import type {
   SurfaceBlockModel,
 } from '@blocksuite/blocks';
 
-import { DocMode } from '@blocksuite/blocks';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { wait } from '../utils/common.js';
@@ -14,7 +13,7 @@ import { setupEditor } from '../utils/setup.js';
 let model: SurfaceBlockModel;
 
 beforeEach(async () => {
-  const cleanup = await setupEditor(DocMode.Edgeless);
+  const cleanup = await setupEditor('edgeless');
   const models = doc.getBlockByFlavour('affine:surface') as SurfaceBlockModel[];
 
   model = models[0];
@@ -498,5 +497,29 @@ describe('basic property', () => {
     expect(group.y).toBe(0);
     expect(group.w).toBe(0);
     expect(group.h).toBe(0);
+  });
+});
+
+describe('brush', () => {
+  test('same lineWidth should have same xywh', () => {
+    const id = model.addElement({
+      type: 'brush',
+      lineWidth: 2,
+      points: [
+        [0, 0],
+        [100, 100],
+        [120, 150],
+      ],
+    });
+    const brush = model.getElementById(id) as BrushElementModel;
+    const oldBrushXYWH = brush.xywh;
+
+    brush.lineWidth = 4;
+
+    expect(brush.xywh).not.toBe(oldBrushXYWH);
+
+    brush.lineWidth = 2;
+
+    expect(brush.xywh).toBe(oldBrushXYWH);
   });
 });

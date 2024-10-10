@@ -1,44 +1,44 @@
-import {
-  InlineManager,
-  textKeymap,
-} from '@blocksuite/affine-components/rich-text';
+import { textKeymap } from '@blocksuite/affine-components/rich-text';
 import { CodeBlockSchema, ColorScheme } from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import { BlockService } from '@blocksuite/block-std';
-import { type Signal, signal } from '@lit-labs/preact-signals';
+import { type Signal, signal } from '@preact/signals-core';
 import {
+  createHighlighterCore,
   type HighlighterCore,
   type MaybeGetter,
-  createHighlighterCore,
 } from 'shiki';
 import { bundledLanguagesInfo } from 'shiki';
 import getWasm from 'shiki/wasm';
 
-import {
-  type CodeBlockTextAttributes,
-  codeBlockInlineSpecs,
-} from './highlight/code-block-inline-specs.js';
 import {
   CODE_BLOCK_DEFAULT_DARK_THEME,
   CODE_BLOCK_DEFAULT_LIGHT_THEME,
 } from './highlight/const.js';
 
 export class CodeBlockService extends BlockService {
+  static override readonly flavour = CodeBlockSchema.model.flavour;
+
   private _darkThemeKey: string | undefined;
 
   private _lightThemeKey: string | undefined;
 
-  static override readonly flavour = CodeBlockSchema.model.flavour;
-
   highlighter$: Signal<HighlighterCore | null> = signal(null);
 
-  readonly inlineManager = new InlineManager<CodeBlockTextAttributes>();
+  get langs() {
+    return this.std.getConfig('affine:code')?.langs ?? bundledLanguagesInfo;
+  }
+
+  get themeKey() {
+    return ThemeObserver.instance.mode$.value === ColorScheme.Dark
+      ? this._darkThemeKey
+      : this._lightThemeKey;
+  }
 
   override mounted(): void {
     super.mounted();
 
     this.bindHotKey(textKeymap(this.std));
-    this.inlineManager.registerSpecs(codeBlockInlineSpecs);
 
     createHighlighterCore({
       loadWasm: getWasm,
@@ -61,16 +61,6 @@ export class CodeBlockService extends BlockService {
         });
       })
       .catch(console.error);
-  }
-
-  get langs() {
-    return this.std.getConfig('affine:code')?.langs ?? bundledLanguagesInfo;
-  }
-
-  get themeKey() {
-    return ThemeObserver.instance.mode$.value === ColorScheme.Dark
-      ? this._darkThemeKey
-      : this._lightThemeKey;
   }
 }
 

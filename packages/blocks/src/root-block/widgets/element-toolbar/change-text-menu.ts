@@ -1,5 +1,8 @@
-import type { ColorScheme } from '@blocksuite/affine-model';
-
+import {
+  ConnectorUtils,
+  normalizeShapeBound,
+  TextUtils,
+} from '@blocksuite/affine-block-surface';
 import {
   SmallArrowDownIcon,
   TextAlignCenterIcon,
@@ -8,6 +11,7 @@ import {
 } from '@blocksuite/affine-components/icons';
 import { renderToolbarSeparator } from '@blocksuite/affine-components/toolbar';
 import {
+  type ColorScheme,
   FontFamily,
   FontStyle,
   FontWeight,
@@ -18,12 +22,17 @@ import {
   ConnectorElementModel,
   EdgelessTextBlockModel,
   LINE_COLORS,
+  ShapeElementModel,
   TextElementModel,
 } from '@blocksuite/affine-model';
-import { WithDisposable } from '@blocksuite/block-std';
-import { Bound, countBy, maxBy } from '@blocksuite/global/utils';
-import { LitElement, type TemplateResult, css, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import {
+  Bound,
+  countBy,
+  maxBy,
+  WithDisposable,
+} from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { choose } from 'lit/directives/choose.js';
 import { join } from 'lit/directives/join.js';
 import { when } from 'lit/directives/when.js';
@@ -34,31 +43,14 @@ import type {
 } from '../../edgeless/components/color-picker/index.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 
-import { isConnectorWithLabel } from '../../../surface-block/element-model/utils/connector.js';
-import { ShapeElementModel } from '../../../surface-block/index.js';
-import { normalizeShapeBound } from '../../../surface-block/index.js';
-import {
-  isFontStyleSupported,
-  isFontWeightSupported,
-} from '../../../surface-block/renderer/elements/text/utils.js';
-import { normalizeTextBound } from '../../../surface-block/renderer/elements/text/utils.js';
-import {
-  getFontFacesByFontFamily,
-  wrapFontFamily,
-} from '../../../surface-block/utils/font.js';
-import '../../edgeless/components/color-picker/index.js';
 import {
   packColor,
   packColorsWithColorScheme,
 } from '../../edgeless/components/color-picker/utils.js';
-import '../../edgeless/components/panel/align-panel.js';
 import {
   type ColorEvent,
   GET_DEFAULT_LINE_COLOR,
 } from '../../edgeless/components/panel/color-panel.js';
-import '../../edgeless/components/panel/font-family-panel.js';
-import '../../edgeless/components/panel/font-weight-and-style-panel.js';
-import '../../edgeless/components/panel/size-panel.js';
 
 const FONT_SIZE_LIST = [
   { value: 16 },
@@ -175,15 +167,30 @@ function buildProps(
   return { ...props };
 }
 
-@customElement('edgeless-change-text-menu')
 export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
+  static override styles = css`
+    :host {
+      display: inherit;
+      align-items: inherit;
+      justify-content: inherit;
+      gap: inherit;
+      height: 100%;
+    }
+  `;
+
   private _setFontFamily = (fontFamily: FontFamily) => {
     const currentFontWeight = getMostCommonFontWeight(this.elements);
-    const fontWeight = isFontWeightSupported(fontFamily, currentFontWeight)
+    const fontWeight = TextUtils.isFontWeightSupported(
+      fontFamily,
+      currentFontWeight
+    )
       ? currentFontWeight
       : FontWeight.Regular;
     const currentFontStyle = getMostCommonFontStyle(this.elements);
-    const fontStyle = isFontStyleSupported(fontFamily, currentFontStyle)
+    const fontStyle = TextUtils.isFontStyleSupported(
+      fontFamily,
+      currentFontStyle
+    )
       ? currentFontStyle
       : FontStyle.Normal;
 
@@ -239,7 +246,7 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
         fontWeight,
         hasMaxWidth,
       } = element;
-      const newBound = normalizeTextBound(
+      const newBound = TextUtils.normalizeTextBound(
         {
           yText,
           fontFamily,
@@ -253,7 +260,10 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
       this.service.updateElement(element.id, {
         xywh: newBound.serialize(),
       });
-    } else if (elementType === 'connector' && isConnectorWithLabel(element)) {
+    } else if (
+      elementType === 'connector' &&
+      ConnectorUtils.isConnectorWithLabel(element)
+    ) {
       const {
         text,
         labelXYWH,
@@ -262,7 +272,7 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
       } = element as ConnectorElementModel;
       const prevBounds = Bound.fromXYWH(labelXYWH || [0, 0, 16, 16]);
       const center = prevBounds.center;
-      const bounds = normalizeTextBound(
+      const bounds = TextUtils.normalizeTextBound(
         {
           yText: text!,
           fontFamily,
@@ -293,35 +303,12 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
     // no need to update the bound of edgeless text block, which updates itself using ResizeObserver
   };
 
-  static override styles = css`
-    :host {
-      display: inherit;
-      align-items: inherit;
-      justify-content: inherit;
-      gap: inherit;
-      height: 100%;
-    }
-  `;
-
   pickColor = (event: PickColorEvent) => {
     if (event.type === 'pick') {
-      this.elements.forEach(ele => {
-        if (ele instanceof ConnectorElementModel) {
-          this.service.updateElement(ele.id, {
-            labelStyle: {
-              ...ele.labelStyle,
-              ...packColor('color', { ...event.detail }),
-            },
-          });
-          this._updateElementBound(ele);
-          return;
-        }
-
-        this.service.updateElement(
-          ele.id,
-          packColor('color', { ...event.detail })
-        );
-        this._updateElementBound(ele);
+      this.elements.forEach(element => {
+        const props = packColor('color', { ...event.detail });
+        this.service.updateElement(element.id, buildProps(element, props));
+        this._updateElementBound(element);
       });
       return;
     }
@@ -333,6 +320,10 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
     });
   };
 
+  get service() {
+    return this.edgeless.service;
+  }
+
   override render() {
     const colorScheme = this.edgeless.surface.renderer.getColorScheme();
     const elements = this.elements;
@@ -342,7 +333,8 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
     const selectedFontSize = Math.trunc(getMostCommonFontSize(elements));
     const selectedFontStyle = getMostCommonFontStyle(elements);
     const selectedFontWeight = getMostCommonFontWeight(elements);
-    const matchFontFaces = getFontFacesByFontFamily(selectedFontFamily);
+    const matchFontFaces =
+      TextUtils.getFontFacesByFontFamily(selectedFontFamily);
     const fontStyleBtnDisabled =
       matchFontFaces.length === 1 &&
       matchFontFaces[0].style === selectedFontStyle &&
@@ -363,7 +355,7 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
               >
                 <span
                   class="label padding0"
-                  style=${`font-family: ${wrapFontFamily(selectedFontFamily)}`}
+                  style=${`font-family: ${TextUtils.wrapFontFamily(selectedFontFamily)}`}
                   >Aa</span
                 >${SmallArrowDownIcon}
               </editor-icon-button>
@@ -501,18 +493,14 @@ export class EdgelessChangeTextMenu extends WithDisposable(LitElement) {
     );
   }
 
-  get service() {
-    return this.edgeless.service;
-  }
-
   @property({ attribute: false })
   accessor edgeless!: EdgelessRootBlockComponent;
 
   @property({ attribute: false })
-  accessor elementType!: BlockSuite.EdgelessTextModelKeyType;
+  accessor elements!: BlockSuite.EdgelessTextModelType[];
 
   @property({ attribute: false })
-  accessor elements!: BlockSuite.EdgelessTextModelType[];
+  accessor elementType!: BlockSuite.EdgelessTextModelKeyType;
 
   @query('edgeless-color-picker-button.text-color')
   accessor textColorButton!: EdgelessColorPickerButton;

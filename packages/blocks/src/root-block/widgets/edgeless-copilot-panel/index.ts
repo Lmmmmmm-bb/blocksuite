@@ -1,18 +1,15 @@
 import type { EditorHost } from '@blocksuite/block-std';
 
-import { DocMode } from '@blocksuite/affine-model';
 import { on, stopPropagation } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { AIItemGroupConfig } from '../../../_common/components/ai-item/types.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 
-import '../../../_common/components/ai-item/ai-item-list.js';
 import { scrollbarStyle } from '../../../_common/components/utils.js';
 
-@customElement('edgeless-copilot-panel')
 export class EdgelessCopilotPanel extends WithDisposable(LitElement) {
   static override styles = css`
     :host {
@@ -56,7 +53,7 @@ export class EdgelessCopilotPanel extends WithDisposable(LitElement) {
     const chain = this._getChain();
     const groups = this.groups.reduce((pre, group) => {
       const filtered = group.items.filter(item =>
-        item.showWhen?.(chain, DocMode.Edgeless, this.host)
+        item.showWhen?.(chain, 'edgeless', this.host)
       );
 
       if (filtered.length > 0) pre.push({ ...group, items: filtered });

@@ -2,11 +2,11 @@ import {
   type AdvancedPortalOptions,
   createLitPortal,
 } from '@blocksuite/affine-components/portal';
-import { WithDisposable } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { DoneIcon, SearchIcon } from '@blocksuite/icons/lit';
-import { type Placement, autoPlacement, offset, size } from '@floating-ui/dom';
-import { LitElement, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { autoPlacement, offset, type Placement, size } from '@floating-ui/dom';
+import { html, LitElement, nothing } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import type { FilterableListItem, FilterableListOptions } from './types.js';
@@ -16,7 +16,6 @@ import { filterableListStyles } from './styles.js';
 
 export * from './types.js';
 
-@customElement('affine-filterable-list')
 export class FilterableListComponent<Props = unknown> extends WithDisposable(
   LitElement
 ) {

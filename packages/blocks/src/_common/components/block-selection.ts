@@ -1,8 +1,8 @@
 import type { BlockComponent } from '@blocksuite/block-std';
 
-import { SignalWatcher } from '@lit-labs/preact-signals';
-import { LitElement, type PropertyValues, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { SignalWatcher } from '@blocksuite/global/utils';
+import { css, LitElement, type PropertyValues } from 'lit';
+import { property } from 'lit/decorators.js';
 
 /**
  * Renders a the block selection.
@@ -21,7 +21,6 @@ import { customElement, property } from 'lit/decorators.js';
  * }
  * ```
  */
-@customElement('affine-block-selection')
 export class BlockSelection extends SignalWatcher(LitElement) {
   static override styles = css`
     :host {

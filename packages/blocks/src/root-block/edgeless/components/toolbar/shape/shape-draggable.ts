@@ -1,19 +1,28 @@
+import { CanvasElementType } from '@blocksuite/affine-block-surface';
 import {
   ellipseSvg,
   roundedSvg,
   triangleSvg,
 } from '@blocksuite/affine-components/icons';
-import { ShapeType } from '@blocksuite/affine-model';
-import { assertExists } from '@blocksuite/global/utils';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import {
+  getShapeRadius,
+  getShapeType,
+  ShapeType,
+} from '@blocksuite/affine-model';
+import {
+  EditPropsStore,
+  TelemetryProvider,
+} from '@blocksuite/affine-shared/services';
+import { ThemeObserver } from '@blocksuite/affine-shared/theme';
+import { assertExists, SignalWatcher } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import type { DraggableShape } from './utils.js';
 
-import { CanvasElementType } from '../../../../../surface-block/index.js';
 import { ShapeToolController } from '../../../tools/shape-tool.js';
 import { EdgelessDraggableElementController } from '../common/draggable/draggable-element.controller.js';
 import { EdgelessToolbarToolMixin } from '../mixins/tool.mixin.js';
@@ -57,9 +66,8 @@ shapes.forEach(s => {
   });
 });
 
-@customElement('edgeless-toolbar-shape-draggable')
 export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
-  LitElement
+  SignalWatcher(LitElement)
 ) {
   static override styles = css`
     :host {
@@ -130,6 +138,12 @@ export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
 
   override type = 'shape' as const;
 
+  get shapeShadow() {
+    return this.theme === 'dark'
+      ? '0 0 7px rgba(0, 0, 0, .22)'
+      : '0 0 5px rgba(0, 0, 0, .2)';
+  }
+
   private _setShapeOverlayLock(lock: boolean) {
     const controller = this.edgeless.tools.currentController;
     if (controller instanceof ShapeToolController) {
@@ -147,9 +161,24 @@ export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
       standardWidth: 100,
       clickToDrag: true,
       onOverlayCreated: (overlay, element) => {
+        const shapeName =
+          this.draggableController.states.draggingElement?.data.name;
+        if (!shapeName) return;
+
+        this.setEdgelessTool({
+          type: 'shape',
+          shapeName,
+        });
+
+        const shape$ =
+          this.edgeless.std.get(EditPropsStore).lastProps$.value[
+            `shape:${shapeName}`
+          ];
+        const color = ThemeObserver.generateColorProperty(shape$.fillColor);
+        const stroke = ThemeObserver.generateColorProperty(shape$.strokeColor);
         Object.assign(overlay.element.style, {
-          color: this.color,
-          stroke: this.stroke,
+          color,
+          stroke,
         });
         const controller = this.edgeless.tools.currentController;
         if (controller instanceof ShapeToolController) {
@@ -163,22 +192,23 @@ export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
         const xywh = bound.serialize();
         const shape = el.data;
         const id = this.edgeless.service.addElement(CanvasElementType.SHAPE, {
-          shapeType: shape.name === 'roundedRect' ? ShapeType.Rect : shape.name,
+          shapeType: getShapeType(shape.name),
           xywh,
-          radius: shape.name === 'roundedRect' ? 0.1 : 0,
+          radius: getShapeRadius(shape.name),
         });
 
-        this.edgeless.service.telemetryService?.track('CanvasElementAdded', {
-          control: 'toolbar:dnd',
-          page: 'whiteboard editor',
-          module: 'toolbar',
-          segment: 'toolbar',
-          type: 'shape',
-          other: {
-            shapeType:
-              shape.name === 'roundedRect' ? ShapeType.Rect : shape.name,
-          },
-        });
+        this.edgeless.std
+          .getOptional(TelemetryProvider)
+          ?.track('CanvasElementAdded', {
+            control: 'toolbar:dnd',
+            page: 'whiteboard editor',
+            module: 'toolbar',
+            segment: 'toolbar',
+            type: 'shape',
+            other: {
+              shapeType: getShapeType(shape.name),
+            },
+          });
 
         this._setShapeOverlayLock(false);
         this.readyToDrop = false;
@@ -247,9 +277,19 @@ export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
         s => s.name,
         shape => {
           const isBeingDragged = draggingShape?.name === shape.name;
+          const shape$ =
+            this.edgeless.std.get(EditPropsStore).lastProps$.value[
+              `shape:${shape.name}`
+            ];
+          const color = ThemeObserver.generateColorProperty(shape$.fillColor);
+          const stroke = ThemeObserver.generateColorProperty(
+            shape$.strokeColor
+          );
           const baseStyle = {
             ...buildVariablesObject(shape.style),
             filter: `drop-shadow(${this.shapeShadow})`,
+            color,
+            stroke,
           };
           const currStyle = styleMap({
             ...baseStyle,
@@ -304,15 +344,6 @@ export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
     }
   }
 
-  get shapeShadow() {
-    return this.theme === 'dark'
-      ? '0 0 7px rgba(0, 0, 0, .22)'
-      : '0 0 5px rgba(0, 0, 0, .2)';
-  }
-
-  @property({ attribute: false })
-  accessor color!: string;
-
   @property({ attribute: false })
   accessor onShapeClick: (shape: DraggableShape) => void = () => {};
 
@@ -321,9 +352,6 @@ export class EdgelessToolbarShapeDraggable extends EdgelessToolbarToolMixin(
 
   @query('.edgeless-shape-draggable')
   accessor shapeContainer!: HTMLDivElement;
-
-  @property({ attribute: false })
-  accessor stroke!: string;
 }
 
 declare global {

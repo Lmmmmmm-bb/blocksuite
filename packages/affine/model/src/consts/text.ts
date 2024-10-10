@@ -1,4 +1,5 @@
 import { createEnumMap } from '../utils/enum.js';
+import { LineColor } from './line.js';
 
 export enum ColorScheme {
   Dark = 'dark',
@@ -62,6 +63,8 @@ export const FontFamilyList = Object.entries(FontFamilyMap) as {
 }[FontFamily][];
 
 export enum TextResizing {
-  AUTO_WIDTH,
+  AUTO_WIDTH_AND_HEIGHT,
   AUTO_HEIGHT,
 }
+
+export const DEFAULT_TEXT_COLOR = LineColor.Blue;

@@ -11,19 +11,21 @@ import {
 import { EDGELESS_BLOCK_CHILD_PADDING } from '@blocksuite/affine-shared/consts';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import {
+  getClosestBlockComponentByPoint,
   handleNativeRangeAtPoint,
   matchFlavours,
   stopPropagation,
 } from '@blocksuite/affine-shared/utils';
-import { getClosestBlockComponentByPoint } from '@blocksuite/affine-shared/utils';
+import { ShadowlessElement, toGfxBlockComponent } from '@blocksuite/block-std';
 import {
-  ShadowlessElement,
+  almostEqual,
+  Bound,
+  clamp,
+  Point,
   WithDisposable,
-  toGfxBlockComponent,
-} from '@blocksuite/block-std';
-import { Bound, Point, almostEqual, clamp } from '@blocksuite/global/utils';
+} from '@blocksuite/global/utils';
 import { css, html, nothing } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
@@ -31,7 +33,6 @@ import type { EdgelessRootService } from '../root-block/index.js';
 
 import { NoteBlockComponent } from './note-block.js';
 
-@customElement('edgeless-note-mask')
 export class EdgelessNoteMask extends WithDisposable(ShadowlessElement) {
   protected override firstUpdated() {
     const maskDOM = this.renderRoot!.querySelector('.affine-note-mask');
@@ -103,7 +104,6 @@ export class EdgelessNoteMask extends WithDisposable(ShadowlessElement) {
 
 const ACTIVE_NOTE_EXTRA_PADDING = 20;
 
-@customElement('affine-edgeless-note')
 export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
   NoteBlockComponent
 ) {
@@ -146,7 +146,17 @@ export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
     }
   `;
 
-  override rootServiceFlavour = 'affine:page';
+  private get _isShowCollapsedContent() {
+    return this.model.edgeless.collapse && (this._isResizing || this._isHover);
+  }
+
+  get _zoom() {
+    return this.gfx.viewport.zoom;
+  }
+
+  get rootService() {
+    return this.std.getService('affine:page') as EdgelessRootService;
+  }
 
   private _collapsedContent() {
     if (!this._isShowCollapsedContent) {
@@ -166,7 +176,7 @@ export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
     const rect = this._notePageContent?.getBoundingClientRect();
     if (!rect) return nothing;
 
-    const zoom = this.rootService.viewport.zoom;
+    const zoom = this.gfx.viewport.zoom;
     this._noteFullHeight =
       rect.height / scale / zoom + 2 * EDGELESS_BLOCK_CHILD_PADDING;
 
@@ -218,10 +228,6 @@ export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
     ) {
       this._isHover = true;
     }
-  }
-
-  private get _isShowCollapsedContent() {
-    return this.model.edgeless.collapse && (this._isResizing || this._isHover);
   }
 
   private _leaved() {
@@ -307,10 +313,6 @@ export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
     }
   }
 
-  get _zoom() {
-    return this.rootService.viewport.zoom;
-  }
-
   override connectedCallback(): void {
     super.connectedCallback();
 
@@ -349,7 +351,7 @@ export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
     const observer = new MutationObserver(() => {
       const rect = this._notePageContent?.getBoundingClientRect();
       if (!rect) return;
-      const zoom = this.rootService.viewport.zoom;
+      const zoom = this.gfx.viewport.zoom;
       const scale = this.model.edgeless.scale ?? 1;
       this._noteFullHeight =
         rect.height / scale / zoom + 2 * EDGELESS_BLOCK_CHILD_PADDING;
@@ -490,20 +492,11 @@ export class EdgelessNoteBlockComponent extends toGfxBlockComponent(
           .model=${this.model}
           .display=${!this._editing}
           .host=${this.host}
-          .zoom=${this.rootService?.viewport.zoom ?? 1}
+          .zoom=${this.gfx.viewport.zoom ?? 1}
           .editing=${this._editing}
         ></edgeless-note-mask>
       </div>
     `;
-  }
-
-  override toZIndex() {
-    // FIXME: weird empty rootService
-    return this.rootService?.layer.getZIndex(this.model).toString() ?? '0';
-  }
-
-  override get rootService() {
-    return super.rootService as EdgelessRootService;
   }
 
   @state()

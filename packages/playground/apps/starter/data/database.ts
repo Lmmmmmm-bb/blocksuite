@@ -1,22 +1,23 @@
 import {
+  databaseBlockColumns,
   type DatabaseBlockModel,
   type ListType,
   type ParagraphType,
   type ViewBasicDataType,
-  columnPresets,
-  richTextColumnConfig,
-  viewPresets,
 } from '@blocksuite/blocks';
+import { viewPresets } from '@blocksuite/data-view/view-presets';
 import { assertExists } from '@blocksuite/global/utils';
 import { type DocCollection, Text } from '@blocksuite/store';
 
 import type { InitFn } from './utils.js';
 
+import { propertyPresets } from '../../../../affine/data-view/src/property-presets';
+
 export const database: InitFn = (collection: DocCollection, id: string) => {
   const doc = collection.createDoc({ id });
-  doc.awarenessStore.setFlag('enable_expand_database_block', true);
   doc.awarenessStore.setFlag('enable_database_number_formatting', true);
   doc.awarenessStore.setFlag('enable_database_attachment_note', true);
+  doc.awarenessStore.setFlag('enable_database_full_width', true);
   doc.awarenessStore.setFlag('enable_block_query', true);
 
   doc.load(() => {
@@ -44,11 +45,12 @@ export const database: InitFn = (collection: DocCollection, id: string) => {
       new Promise(resolve => requestAnimationFrame(resolve))
         .then(() => {
           const service = window.host.std.getService('affine:database');
+          if (!service) return;
           service.initDatabaseBlock(
             doc,
             model,
             databaseId,
-            viewPresets.tableViewConfig,
+            viewPresets.tableViewMeta.type,
             true
           );
           const database = doc.getBlockById(databaseId) as DatabaseBlockModel;
@@ -56,20 +58,22 @@ export const database: InitFn = (collection: DocCollection, id: string) => {
           const richTextId = service.addColumn(
             database,
             'end',
-            richTextColumnConfig.model.create(richTextColumnConfig.model.name)
+            databaseBlockColumns.richTextColumnConfig.create(
+              databaseBlockColumns.richTextColumnConfig.config.name
+            )
           );
           Object.values([
-            columnPresets.multiSelectColumnConfig,
-            columnPresets.dateColumnConfig,
-            columnPresets.numberColumnConfig,
-            columnPresets.linkColumnConfig,
-            columnPresets.checkboxColumnConfig,
-            columnPresets.progressColumnConfig,
+            propertyPresets.multiSelectPropertyConfig,
+            propertyPresets.datePropertyConfig,
+            propertyPresets.numberPropertyConfig,
+            databaseBlockColumns.linkColumnConfig,
+            propertyPresets.checkboxPropertyConfig,
+            propertyPresets.progressPropertyConfig,
           ]).forEach(column => {
             service.addColumn(
               database,
               'end',
-              column.model.create(column.model.name)
+              column.create(column.config.name)
             );
           });
           service.updateView(database, database.views[0].id, () => {
@@ -128,7 +132,10 @@ export const database: InitFn = (collection: DocCollection, id: string) => {
           doc.addBlock('affine:paragraph', {}, noteId);
           doc.addBlock('affine:paragraph', {}, noteId);
           doc.addBlock('affine:paragraph', {}, noteId);
-          service.databaseViewAddView(database, viewPresets.kanbanViewConfig);
+          service.databaseViewAddView(
+            database,
+            viewPresets.kanbanViewMeta.type
+          );
 
           doc.resetHistory();
         })

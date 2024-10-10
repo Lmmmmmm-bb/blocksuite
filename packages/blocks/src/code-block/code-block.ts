@@ -1,14 +1,12 @@
 import type { CodeBlockModel } from '@blocksuite/affine-model';
 import type { BlockComponent } from '@blocksuite/block-std';
-import type { VLine } from '@blocksuite/inline';
 import type { ThemedToken } from 'shiki';
 
 import { CaptionedBlockComponent } from '@blocksuite/affine-components/caption';
 import {
-  type RichText,
   focusTextModel,
+  type RichText,
 } from '@blocksuite/affine-components/rich-text';
-import '@blocksuite/affine-components/rich-text';
 import { toast } from '@blocksuite/affine-components/toast';
 import { BRACKET_PAIRS, NOTE_SELECTOR } from '@blocksuite/affine-shared/consts';
 import { getViewportElement } from '@blocksuite/affine-shared/utils';
@@ -19,33 +17,28 @@ import {
   INLINE_ROOT_ATTR,
   type InlineRangeProvider,
   type InlineRootElement,
+  type VLine,
 } from '@blocksuite/inline';
 import { Slice } from '@blocksuite/store';
-import {
-  type Signal,
-  computed,
-  effect,
-  signal,
-} from '@lit-labs/preact-signals';
-import { type TemplateResult, html, nothing } from 'lit';
-import { customElement, query } from 'lit/decorators.js';
+import { computed, effect, type Signal, signal } from '@preact/signals-core';
+import { html, nothing, type TemplateResult } from 'lit';
+import { query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import type { CodeBlockService } from './code-block-service.js';
 
 import { EdgelessRootBlockComponent } from '../root-block/edgeless/edgeless-root-block.js';
 import { CodeClipboardController } from './clipboard/index.js';
-import './highlight/affine-code-unit.js';
+import { CodeBlockInlineManagerExtension } from './code-block-inline.js';
 import { codeBlockStyles } from './styles.js';
 
-@customElement('affine-code')
 export class CodeBlockComponent extends CaptionedBlockComponent<
   CodeBlockModel,
   CodeBlockService
 > {
-  private _inlineRangeProvider: InlineRangeProvider | null = null;
-
   static override styles = codeBlockStyles;
+
+  private _inlineRangeProvider: InlineRangeProvider | null = null;
 
   clipboardController = new CodeClipboardController(this);
 
@@ -60,6 +53,29 @@ export class CodeBlockComponent extends CaptionedBlockComponent<
     const matchedInfo = this.service.langs.find(info => info.id === lang);
     return matchedInfo ? matchedInfo.name : 'Plain Text';
   });
+
+  get inlineEditor() {
+    const inlineRoot = this.querySelector<InlineRootElement>(
+      `[${INLINE_ROOT_ATTR}]`
+    );
+    return inlineRoot?.inlineEditor;
+  }
+
+  get inlineManager() {
+    return this.std.get(CodeBlockInlineManagerExtension.identifier);
+  }
+
+  get readonly() {
+    return this.doc.readonly;
+  }
+
+  override get topContenteditableElement() {
+    if (this.rootComponent instanceof EdgelessRootBlockComponent) {
+      const el = this.closest<BlockComponent>(NOTE_SELECTOR);
+      return el;
+    }
+    return this.rootComponent;
+  }
 
   private _updateHighlightTokens() {
     const modelLang = this.model.language$.value;
@@ -128,7 +144,7 @@ export class CodeBlockComponent extends CaptionedBlockComponent<
     this.disposables.add(
       effect(() => {
         noop(this.highlightTokens$.value);
-        this._richTextElement?.inlineEditor?.requestUpdate();
+        this._richTextElement?.inlineEditor?.render();
       })
     );
 
@@ -370,8 +386,8 @@ export class CodeBlockComponent extends CaptionedBlockComponent<
           .yText=${this.model.text.yText}
           .inlineEventSource=${this.topContenteditableElement ?? nothing}
           .undoManager=${this.doc.history}
-          .attributesSchema=${this.service.inlineManager.getSchema()}
-          .attributeRenderer=${this.service.inlineManager.getRenderer()}
+          .attributesSchema=${this.inlineManager.getSchema()}
+          .attributeRenderer=${this.inlineManager.getRenderer()}
           .readonly=${this.doc.readonly}
           .inlineRangeProvider=${this._inlineRangeProvider}
           .enableClipboard=${false}
@@ -396,25 +412,6 @@ export class CodeBlockComponent extends CaptionedBlockComponent<
 
   setWrap(wrap: boolean) {
     this.doc.updateBlock(this.model, { wrap });
-  }
-
-  get inlineEditor() {
-    const inlineRoot = this.querySelector<InlineRootElement>(
-      `[${INLINE_ROOT_ATTR}]`
-    );
-    return inlineRoot?.inlineEditor;
-  }
-
-  get readonly() {
-    return this.doc.readonly;
-  }
-
-  override get topContenteditableElement() {
-    if (this.rootComponent instanceof EdgelessRootBlockComponent) {
-      const el = this.closest<BlockComponent>(NOTE_SELECTOR);
-      return el;
-    }
-    return this.rootComponent;
   }
 
   @query('rich-text')

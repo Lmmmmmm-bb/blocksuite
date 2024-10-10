@@ -1,5 +1,7 @@
 import { type Color, ColorScheme } from '@blocksuite/affine-model';
-import { signal } from '@lit-labs/preact-signals';
+import { signal } from '@preact/signals-core';
+
+const COLOR_SCHEMES: string[] = Object.values(ColorScheme);
 
 const TRANSPARENT = 'transparent';
 
@@ -25,6 +27,20 @@ export class ThemeObserver {
     return computedStyle;
   }
 
+  static get instance(): ThemeObserver {
+    if (!ThemeObserver.#instance) {
+      const instance = new ThemeObserver();
+      instance.observe(document.documentElement);
+      ThemeObserver.#instance = instance;
+    }
+
+    return ThemeObserver.#instance;
+  }
+
+  static get mode() {
+    return ThemeObserver.instance.mode$.peek();
+  }
+
   /**
    * Generates a CSS's color property with `var` or `light-dark` functions.
    *
@@ -43,34 +59,26 @@ export class ThemeObserver {
    * `var(--affine-palette-shape-blue)`
    * ```
    */
-  static generateColorProperty(color: Color, fallback = 'transparent') {
-    fallback = fallback.startsWith('--')
-      ? fallback.endsWith(TRANSPARENT)
-        ? TRANSPARENT
-        : `var(${fallback})`
-      : fallback;
+  static generateColorProperty(
+    color: Color,
+    fallback = 'transparent',
+    mode = ThemeObserver.mode
+  ) {
+    let result: string | undefined = undefined;
 
-    if (typeof color === 'string') {
-      return (
-        (color.startsWith('--')
-          ? color.endsWith(TRANSPARENT)
-            ? TRANSPARENT
-            : `var(${color})`
-          : color) ?? fallback
-      );
+    if (typeof color === 'object') {
+      result = color[mode] ?? color.normal;
+    } else {
+      result = color;
+    }
+    if (!result) {
+      result = fallback;
+    }
+    if (result.startsWith('--')) {
+      return result.endsWith(TRANSPARENT) ? TRANSPARENT : `var(${result})`;
     }
 
-    if (!color) {
-      return fallback;
-    }
-
-    if (color.light && color.dark) {
-      return this.mode === ColorScheme.Dark
-        ? `var(${color.dark})`
-        : `var(${color.light})`;
-    }
-
-    return color.normal ?? fallback;
+    return result ?? TRANSPARENT;
   }
 
   /**
@@ -89,26 +97,29 @@ export class ThemeObserver {
    * `--affine-palette-shape-blue`
    * ```
    */
-  static getColorValue(color: Color, fallback = TRANSPARENT, real?: boolean) {
+  static getColorValue(
+    color: Color,
+    fallback = TRANSPARENT,
+    real = false,
+    mode = ThemeObserver.mode
+  ) {
+    let result: string | undefined = undefined;
+
     if (typeof color === 'object') {
-      color = color[ThemeObserver.mode] ?? color.normal ?? fallback;
+      result = color[mode] ?? color.normal;
+    } else {
+      result = color;
     }
-    if (!color) {
-      color = fallback ?? TRANSPARENT;
+    if (!result) {
+      result = fallback;
     }
-    if (real && color.startsWith('--')) {
-      color = color.endsWith(TRANSPARENT)
+    if (real && result.startsWith('--')) {
+      result = result.endsWith(TRANSPARENT)
         ? TRANSPARENT
-        : ThemeObserver.getPropertyValue(color);
-
-      if (!color) {
-        color = fallback.startsWith('--')
-          ? ThemeObserver.getPropertyValue(fallback)
-          : fallback;
-      }
+        : ThemeObserver.getPropertyValue(result);
     }
 
-    return color;
+    return result ?? TRANSPARENT;
   }
 
   static getPropertyValue(property: string) {
@@ -124,20 +135,6 @@ export class ThemeObserver {
     return property;
   }
 
-  static get instance(): ThemeObserver {
-    if (!ThemeObserver.#instance) {
-      const instance = new ThemeObserver();
-      instance.observe(document.documentElement);
-      ThemeObserver.#instance = instance;
-    }
-
-    return ThemeObserver.#instance;
-  }
-
-  static get mode() {
-    return ThemeObserver.instance.mode$.peek();
-  }
-
   static subscribe(callback: (T: ColorScheme) => void) {
     return ThemeObserver.instance.mode$.subscribe(callback);
   }
@@ -149,9 +146,11 @@ export class ThemeObserver {
   observe(element: HTMLElement) {
     const callback = () => {
       const mode = element.dataset.theme;
-      if (mode && this.mode$.peek() !== mode) {
-        this.mode$.value = mode as ColorScheme;
-      }
+      if (!mode) return;
+      if (!COLOR_SCHEMES.includes(mode)) return;
+      if (mode === this.mode$.value) return;
+
+      this.mode$.value = mode as ColorScheme;
     };
 
     this.#observer?.disconnect();

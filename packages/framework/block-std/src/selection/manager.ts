@@ -1,20 +1,15 @@
 import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
 import { DisposableGroup, Slot } from '@blocksuite/global/utils';
-import { type StackItem, nanoid } from '@blocksuite/store';
-import { computed, signal } from '@lit-labs/preact-signals';
+import { nanoid, type StackItem } from '@blocksuite/store';
+import { computed, signal } from '@preact/signals-core';
 
 import type { BlockStdScope } from '../scope/index.js';
 import type { BaseSelection } from './base.js';
 
 import { LifeCycleWatcher } from '../extension/index.js';
-import {
-  BlockSelection,
-  CursorSelection,
-  SurfaceSelection,
-  TextSelection,
-} from './variants/index.js';
+import { SelectionIdentifier } from '../identifier.js';
 
-interface SelectionConstructor {
+export interface SelectionConstructor {
   type: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   new (...args: any[]): BaseSelection;
@@ -22,6 +17,8 @@ interface SelectionConstructor {
 }
 
 export class SelectionManager extends LifeCycleWatcher {
+  static override readonly key = 'selectionManager';
+
   private _id: string;
 
   private _itemAdded = (event: { stackItem: StackItem }) => {
@@ -52,14 +49,28 @@ export class SelectionManager extends LifeCycleWatcher {
 
   private _selections = signal<BaseSelection[]>([]);
 
-  static override readonly key = 'selectionManager';
-
   disposables = new DisposableGroup();
 
   slots = {
     changed: new Slot<BaseSelection[]>(),
     remoteChanged: new Slot<Map<number, BaseSelection[]>>(),
   };
+
+  private get _store() {
+    return this.std.collection.awarenessStore;
+  }
+
+  get id() {
+    return this._id;
+  }
+
+  get remoteSelections() {
+    return this._remoteSelections.value;
+  }
+
+  get value() {
+    return this._selections.value;
+  }
 
   constructor(std: BlockStdScope) {
     super(std);
@@ -117,16 +128,9 @@ export class SelectionManager extends LifeCycleWatcher {
   }
 
   private _setupDefaultSelections() {
-    this.register([
-      TextSelection,
-      BlockSelection,
-      SurfaceSelection,
-      CursorSelection,
-    ]);
-  }
-
-  private get _store() {
-    return this.std.collection.awarenessStore;
+    this.std.provider.getAll(SelectionIdentifier).forEach(ctor => {
+      this.register(ctor);
+    });
   }
 
   clear(types?: string[]) {
@@ -241,17 +245,5 @@ export class SelectionManager extends LifeCycleWatcher {
   update(fn: (currentSelections: BaseSelection[]) => BaseSelection[]) {
     const selections = fn(this.value);
     this.set(selections);
-  }
-
-  get id() {
-    return this._id;
-  }
-
-  get remoteSelections() {
-    return this._remoteSelections.value;
-  }
-
-  get value() {
-    return this._selections.value;
   }
 }

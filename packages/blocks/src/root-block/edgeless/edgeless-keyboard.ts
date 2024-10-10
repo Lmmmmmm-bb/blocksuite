@@ -1,13 +1,23 @@
 import {
-  EdgelessTextBlockModel,
-  NoteDisplayMode,
-  ShapeType,
+  LayoutType,
+  MindmapElementModel,
+  type ShapeElementModel,
 } from '@blocksuite/affine-model';
+import {
+  ConnectorElementModel,
+  ConnectorMode,
+  EdgelessTextBlockModel,
+  GroupElementModel,
+  NoteDisplayMode,
+} from '@blocksuite/affine-model';
+import {
+  EditPropsStore,
+  TelemetryProvider,
+} from '@blocksuite/affine-shared/services';
 import { matchFlavours } from '@blocksuite/affine-shared/utils';
 import { IS_MAC } from '@blocksuite/global/env';
 import { Bound } from '@blocksuite/global/utils';
 
-import type { ShapeElementModel } from '../../surface-block/index.js';
 import type { EdgelessRootBlockComponent } from './edgeless-root-block.js';
 import type { EdgelessTool } from './types.js';
 
@@ -18,13 +28,6 @@ import {
 } from '../../_common/edgeless/mindmap/index.js';
 import { LassoMode } from '../../_common/types.js';
 import { EdgelessTextBlockComponent } from '../../edgeless-text-block/edgeless-text-block.js';
-import { MindmapElementModel } from '../../surface-block/element-model/mindmap.js';
-import { LayoutType } from '../../surface-block/element-model/utils/mindmap/layout.js';
-import {
-  ConnectorElementModel,
-  ConnectorMode,
-  GroupElementModel,
-} from '../../surface-block/index.js';
 import { PageKeyboardManager } from '../keyboard/keyboard-manager.js';
 import { GfxBlockModel } from './block-model.js';
 import { CopilotSelectionController } from './tools/copilot-tool.js';
@@ -36,7 +39,7 @@ import {
   DEFAULT_NOTE_TIP,
 } from './utils/consts.js';
 import { deleteElements } from './utils/crud.js';
-import { getNextShapeType, updateShapeProps } from './utils/hotkey-utils.js';
+import { getNextShapeType } from './utils/hotkey-utils.js';
 import { isCanvasElement, isNoteBlock } from './utils/query.js';
 import {
   mountConnectorLabelEditor,
@@ -60,7 +63,7 @@ export class EdgelessPageKeyboardManager extends PageKeyboardManager {
         },
         c: () => {
           const mode = ConnectorMode.Curve;
-          rootComponent.service.editPropsStore.recordLastProps('connector', {
+          rootComponent.std.get(EditPropsStore).recordLastProps('connector', {
             mode,
           });
           this._setEdgelessTool(rootComponent, { type: 'connector', mode });
@@ -147,16 +150,15 @@ export class EdgelessPageKeyboardManager extends PageKeyboardManager {
           ) {
             const frame = rootComponent.service.frame.createFrameOnSelected();
             if (!frame) return;
-            rootComponent.service.telemetryService?.track(
-              'CanvasElementAdded',
-              {
+            this.rootComponent.std
+              .getOptional(TelemetryProvider)
+              ?.track('CanvasElementAdded', {
                 control: 'shortcut',
                 page: 'whiteboard editor',
                 module: 'toolbar',
                 segment: 'toolbar',
                 type: 'frame',
-              }
-            );
+              });
             rootComponent.surface.fitToViewport(Bound.deserialize(frame.xywh));
           } else if (!this.rootComponent.service.selection.editing) {
             this._setEdgelessTool(rootComponent, { type: 'frame' });
@@ -180,7 +182,6 @@ export class EdgelessPageKeyboardManager extends PageKeyboardManager {
             std.selection.getGroup('note').length > 0 ||
             // eslint-disable-next-line unicorn/prefer-array-some
             std.selection.find('text') ||
-            // eslint-disable-next-line unicorn/prefer-array-some
             Boolean(std.selection.find('surface')?.editing)
           ) {
             return;
@@ -191,59 +192,37 @@ export class EdgelessPageKeyboardManager extends PageKeyboardManager {
 
           insertedLinkType
             ?.then(type => {
-              if (type) {
-                rootComponent.service.telemetryService?.track(
-                  'CanvasElementAdded',
-                  {
-                    control: 'shortcut',
-                    page: 'whiteboard editor',
-                    module: 'toolbar',
-                    segment: 'toolbar',
-                    type: type.flavour?.split(':')[1],
-                  }
-                );
-                if (type.isNewDoc) {
-                  rootComponent.service.telemetryService?.track('DocCreated', {
-                    control: 'shortcut',
-                    page: 'whiteboard editor',
-                    segment: 'whiteboard',
-                    type: type.flavour?.split(':')[1],
-                  });
-                }
-              }
+              const flavour = type?.flavour;
+              if (!flavour) return;
+
+              rootComponent.std
+                .getOptional(TelemetryProvider)
+                ?.track('CanvasElementAdded', {
+                  control: 'shortcut',
+                  page: 'whiteboard editor',
+                  module: 'toolbar',
+                  segment: 'toolbar',
+                  type: flavour.split(':')[1],
+                });
             })
             .catch(console.error);
         },
         'Shift-s': () => {
           if (this.rootComponent.service.locked) return;
+          const controller = rootComponent.tools.currentController;
           if (
             this.rootComponent.service.selection.editing ||
-            !(
-              rootComponent.tools.currentController instanceof
-              ShapeToolController
-            )
+            !(controller instanceof ShapeToolController)
           ) {
             return;
           }
-
-          const attr =
-            rootComponent.service.editPropsStore.getLastProps('shape');
-
-          const nextShapeType = getNextShapeType(
-            attr.radius > 0 && attr.shapeType === ShapeType.Rect
-              ? 'roundedRect'
-              : attr.shapeType
-          );
+          const { shapeName } = controller.tool;
+          const nextShapeName = getNextShapeType(shapeName);
           this._setEdgelessTool(rootComponent, {
             type: 'shape',
-            shapeType:
-              nextShapeType === 'roundedRect' ? ShapeType.Rect : nextShapeType,
+            shapeName: nextShapeName,
           });
 
-          updateShapeProps(nextShapeType, rootComponent);
-
-          const controller = rootComponent.tools
-            .currentController as ShapeToolController;
           controller.createOverlay();
         },
         'Mod-g': ctx => {
@@ -499,7 +478,14 @@ export class EdgelessPageKeyboardManager extends PageKeyboardManager {
         const selection = service.selection;
         if (event.code === 'Space' && !event.repeat) {
           this._space(event);
-        } else if (!selection.editing && event.key.length === 1) {
+        } else if (
+          !selection.editing &&
+          event.key.length === 1 &&
+          !event.shiftKey &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey
+        ) {
           const elements = selection.selectedElements;
           const doc = this.rootComponent.doc;
 

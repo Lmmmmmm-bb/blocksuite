@@ -1,14 +1,18 @@
 import type { IBound } from '@blocksuite/global/utils';
 
+import { EditPropsStore } from '@blocksuite/affine-shared/services';
 import {
   requestConnectedFrame,
   stopPropagation,
 } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
-import { Bound, getCommonBound } from '@blocksuite/global/utils';
+import {
+  Bound,
+  getCommonBound,
+  WithDisposable,
+} from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
@@ -26,14 +30,9 @@ import {
 import { EdgelessDraggableElementController } from '../common/draggable/draggable-element.controller.js';
 import { builtInTemplates } from './builtin-templates.js';
 import { ArrowIcon, defaultPreview } from './icon.js';
-import './overlay-scrollbar.js';
-import './template-loading.js';
 import { cloneDeep } from './utils.js';
 
-@customElement('edgeless-templates-panel')
 export class EdgelessTemplatePanel extends WithDisposable(LitElement) {
-  private _fetchJob: null | { cancel: () => void } = null;
-
   static override styles = css`
     :host {
       position: absolute;
@@ -200,6 +199,8 @@ export class EdgelessTemplatePanel extends WithDisposable(LitElement) {
 
   static templates = builtInTemplates;
 
+  private _fetchJob: null | { cancel: () => void } = null;
+
   draggableController!: EdgelessDraggableElementController<Template>;
 
   private _closePanel() {
@@ -224,18 +225,14 @@ export class EdgelessTemplatePanel extends WithDisposable(LitElement) {
         middlewares.push(createInsertPlaceMiddleware(currentContentBound));
       }
 
-      const idxGenerator = service.layer.createIndexGenerator(true);
+      const idxGenerator = service.layer.createIndexGenerator();
 
-      middlewares.push(
-        createRegenerateIndexMiddleware((type: string) => idxGenerator(type))
-      );
+      middlewares.push(createRegenerateIndexMiddleware(() => idxGenerator()));
     }
 
     if (type === 'sticker') {
       middlewares.push(
-        createStickerMiddleware(center, () =>
-          service.layer.generateIndex('affine:image')
-        )
+        createStickerMiddleware(center, () => service.layer.generateIndex())
       );
     }
 
@@ -275,7 +272,7 @@ export class EdgelessTemplatePanel extends WithDisposable(LitElement) {
   }
 
   private _getLocalSelectedCategory() {
-    return this.edgeless.service.editPropsStore.getStorage('templateCache');
+    return this.edgeless.std.get(EditPropsStore).getStorage('templateCache');
   }
 
   private async _initCategory() {
@@ -384,10 +381,9 @@ export class EdgelessTemplatePanel extends WithDisposable(LitElement) {
     this.addEventListener('keydown', stopPropagation, false);
     this._disposables.add(() => {
       if (this._currentCategory) {
-        this.edgeless.service.editPropsStore.setStorage(
-          'templateCache',
-          this._currentCategory
-        );
+        this.edgeless.std
+          .get(EditPropsStore)
+          .setStorage('templateCache', this._currentCategory);
       }
     });
   }

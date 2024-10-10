@@ -1,7 +1,6 @@
 import { NOTE_WIDTH, NoteDisplayMode } from '@blocksuite/affine-model';
 import { expect } from '@playwright/test';
 
-// eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import {
   activeNoteInEdgeless,
   addNote,
@@ -255,6 +254,7 @@ test('duplicate note should work correctly', async ({ page }) => {
   await selectNoteInEdgeless(page, noteId);
 
   await triggerComponentToolbarAction(page, 'duplicate');
+  await waitNextFrame(page, 200); // wait viewport fit animation
   const moreActionsContainer = page.locator('.more-actions-container');
   await expect(moreActionsContainer).toBeHidden();
 
@@ -263,9 +263,7 @@ test('duplicate note should work correctly', async ({ page }) => {
   const [firstNote, secondNote] = await noteLocator.all();
 
   // content should be same
-  expect(
-    (await firstNote.innerText()) === (await secondNote.innerText())
-  ).toBeTruthy();
+  expect(await firstNote.innerText()).toEqual(await secondNote.innerText());
 
   // size should be same
   const firstNoteBox = await firstNote.boundingBox();
@@ -299,7 +297,7 @@ test('change note color', async ({ page }) => {
   await assertEdgelessNoteBackground(
     page,
     noteId,
-    '--affine-note-background-blue'
+    '--affine-note-background-white'
   );
 
   await selectNoteInEdgeless(page, noteId);

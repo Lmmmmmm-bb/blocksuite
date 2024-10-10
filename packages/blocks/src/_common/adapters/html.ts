@@ -1,31 +1,31 @@
 import type { AffineTextAttributes } from '@blocksuite/affine-components/rich-text';
 import type { DeltaInsert } from '@blocksuite/inline';
-import type {
-  FromBlockSnapshotPayload,
-  FromBlockSnapshotResult,
-  FromDocSnapshotPayload,
-  FromDocSnapshotResult,
-  FromSliceSnapshotPayload,
-  FromSliceSnapshotResult,
-  ToBlockSnapshotPayload,
-  ToDocSnapshotPayload,
-} from '@blocksuite/store';
-import type {
-  BlockSnapshot,
-  DocSnapshot,
-  SliceSnapshot,
-} from '@blocksuite/store';
 import type { Root } from 'hast';
 
-import { ColorScheme, NoteDisplayMode } from '@blocksuite/affine-model';
+import {
+  ColorScheme,
+  DEFAULT_NOTE_BACKGROUND_COLOR,
+  NoteDisplayMode,
+} from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import { getFilenameFromContentDisposition } from '@blocksuite/affine-shared/utils';
 import { sha } from '@blocksuite/global/utils';
 import {
   type AssetsManager,
+  type BlockSnapshot,
   BlockSnapshotSchema,
+  type DocSnapshot,
+  type FromBlockSnapshotPayload,
+  type FromBlockSnapshotResult,
+  type FromDocSnapshotPayload,
+  type FromDocSnapshotResult,
+  type FromSliceSnapshotPayload,
+  type FromSliceSnapshotResult,
   getAssetName,
   nanoid,
+  type SliceSnapshot,
+  type ToBlockSnapshotPayload,
+  type ToDocSnapshotPayload,
 } from '@blocksuite/store';
 import { ASTWalker, BaseAdapter } from '@blocksuite/store';
 import { collapseWhiteSpace } from 'collapse-white-space';
@@ -35,15 +35,16 @@ import { bundledLanguagesInfo, codeToHast } from 'shiki';
 import { unified } from 'unified';
 
 import {
-  type HtmlAST,
   hastFlatNodes,
   hastGetElementChildren,
   hastGetTextChildren,
   hastGetTextChildrenOnlyAst,
   hastGetTextContent,
+  hastIsParagraphLike,
   hastQuerySelector,
+  type HtmlAST,
 } from './hast.js';
-import { fetchImage, fetchable, mergeDeltas } from './utils.js';
+import { fetchable, fetchImage, mergeDeltas } from './utils.js';
 
 export type Html = string;
 
@@ -437,30 +438,9 @@ export class HtmlAdapter extends BaseAdapter<Html> {
         case 'span':
         case 'footer': {
           if (
-            // Check if it is a paragraph like div
             o.parent?.node.type === 'element' &&
-            o.parent.node.tagName !== 'li' &&
-            (hastGetElementChildren(o.node).every(child =>
-              [
-                'a',
-                'b',
-                'bdi',
-                'bdo',
-                'br',
-                'code',
-                'del',
-                'em',
-                'i',
-                'ins',
-                'mark',
-                'span',
-                'strong',
-                'u',
-              ].includes(child.tagName)
-            ) ||
-              o.node.children
-                .map(child => child.type)
-                .every(type => type === 'text'))
+            !['li', 'p'].includes(o.parent.node.tagName) &&
+            hastIsParagraphLike(o.node)
           ) {
             context
               .openNode(
@@ -604,6 +584,7 @@ export class HtmlAdapter extends BaseAdapter<Html> {
               'children'
             )
             .closeNode();
+          context.skipAllChildren();
           break;
         }
         case 'iframe': {
@@ -1190,7 +1171,7 @@ export class HtmlAdapter extends BaseAdapter<Html> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1215,7 +1196,7 @@ export class HtmlAdapter extends BaseAdapter<Html> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1275,7 +1256,7 @@ export class HtmlAdapter extends BaseAdapter<Html> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,

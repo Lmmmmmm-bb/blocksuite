@@ -1,19 +1,19 @@
+import type { DocMode } from '@blocksuite/affine-model';
 import type { BlockStdScope } from '@blocksuite/block-std';
 import type { BlockModel, Doc } from '@blocksuite/store';
 
-import { DocMode } from '@blocksuite/affine-model';
 import { stopPropagation } from '@blocksuite/affine-shared/utils';
 import {
-  ShadowlessElement,
-  WithDisposable,
   docContext,
   modelContext,
+  ShadowlessElement,
   stdContext,
 } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { Text } from '@blocksuite/store';
 import { consume } from '@lit/context';
 import { css, html, nothing } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { query, state } from 'lit/decorators.js';
 
 import { focusTextModel } from '../rich-text/index.js';
 
@@ -21,12 +21,9 @@ export interface BlockCaptionProps {
   caption: string | null | undefined;
 }
 
-@customElement('block-caption-editor')
 export class BlockCaptionEditor<
   Model extends BlockModel<BlockCaptionProps> = BlockModel<BlockCaptionProps>,
 > extends WithDisposable(ShadowlessElement) {
-  private _focus = false;
-
   static override styles = css`
     .block-caption-editor {
       display: inline-table;
@@ -45,15 +42,23 @@ export class BlockCaptionEditor<
     }
   `;
 
+  private _focus = false;
+
   show = () => {
     this.display = true;
     this.updateComplete.then(() => this.input.focus()).catch(console.error);
   };
 
+  get mode(): DocMode {
+    return this.doc.getParent(this.model)?.flavour === 'affine:surface'
+      ? 'edgeless'
+      : 'page';
+  }
+
   private _onCaptionKeydown(event: KeyboardEvent) {
     event.stopPropagation();
 
-    if (this.mode === DocMode.Edgeless || event.isComposing) {
+    if (this.mode === 'edgeless' || event.isComposing) {
       return;
     }
 
@@ -145,12 +150,6 @@ export class BlockCaptionEditor<
       @keydown=${this._onCaptionKeydown}
       @keyup=${stopPropagation}
     ></textarea>`;
-  }
-
-  get mode() {
-    return this.doc.getParent(this.model)?.flavour === 'affine:surface'
-      ? DocMode.Edgeless
-      : DocMode.Page;
   }
 
   @state()

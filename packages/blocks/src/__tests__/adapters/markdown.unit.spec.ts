@@ -5,7 +5,10 @@ import type {
   SliceSnapshot,
 } from '@blocksuite/store';
 
-import { NoteDisplayMode } from '@blocksuite/affine-model';
+import {
+  DEFAULT_NOTE_BACKGROUND_COLOR,
+  NoteDisplayMode,
+} from '@blocksuite/affine-model';
 import { AssetsManager, MemoryBlobCRUD } from '@blocksuite/store';
 import { describe, expect, test } from 'vitest';
 
@@ -42,7 +45,7 @@ describe('snapshot to markdown', () => {
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -106,7 +109,7 @@ describe('snapshot to markdown', () => {
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -305,7 +308,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -453,7 +456,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -605,7 +608,7 @@ hhh
           version: 1,
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: 'both',
@@ -745,7 +748,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -790,6 +793,134 @@ hhh
     expect(target.file).toBe(markdown);
   });
 
+  test('inline latex', async () => {
+    const blockSnapshot: BlockSnapshot = {
+      type: 'block',
+      id: 'block:vu6SK6WJpW',
+      flavour: 'affine:page',
+      props: {
+        title: {
+          '$blocksuite:internal:text$': true,
+          delta: [],
+        },
+      },
+      children: [
+        {
+          type: 'block',
+          id: 'block:Tk4gSPocAt',
+          flavour: 'affine:surface',
+          props: {
+            elements: {},
+          },
+          children: [],
+        },
+        {
+          type: 'block',
+          id: 'block:WfnS5ZDCJT',
+          flavour: 'affine:note',
+          props: {
+            xywh: '[0,0,800,95]',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
+            index: 'a0',
+            hidden: false,
+            displayMode: NoteDisplayMode.DocAndEdgeless,
+          },
+          children: [
+            {
+              type: 'block',
+              id: 'block:qhpbuss-KN',
+              flavour: 'affine:paragraph',
+              props: {
+                type: 'text',
+                text: {
+                  '$blocksuite:internal:text$': true,
+                  delta: [
+                    {
+                      insert: 'inline ',
+                    },
+                    {
+                      insert: ' ',
+                      attributes: {
+                        latex: 'E=mc^2',
+                      },
+                    },
+                    {
+                      insert: ' latex',
+                    },
+                  ],
+                },
+              },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+    const markdown = 'inline $E=mc^2$ latex\n';
+
+    const mdAdapter = new MarkdownAdapter(createJob());
+    const target = await mdAdapter.fromBlockSnapshot({
+      snapshot: blockSnapshot,
+    });
+    expect(target.file).toBe(markdown);
+  });
+
+  test('latex block', async () => {
+    const blockSnapshot: BlockSnapshot = {
+      type: 'block',
+      id: 'block:vu6SK6WJpW',
+      flavour: 'affine:page',
+      props: {
+        title: {
+          '$blocksuite:internal:text$': true,
+          delta: [],
+        },
+      },
+      children: [
+        {
+          type: 'block',
+          id: 'block:Tk4gSPocAt',
+          flavour: 'affine:surface',
+          props: {
+            elements: {},
+          },
+          children: [],
+        },
+        {
+          type: 'block',
+          id: 'block:WfnS5ZDCJT',
+          flavour: 'affine:note',
+          props: {
+            xywh: '[0,0,800,95]',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
+            index: 'a0',
+            hidden: false,
+            displayMode: NoteDisplayMode.DocAndEdgeless,
+          },
+          children: [
+            {
+              type: 'block',
+              id: 'block:8hOLxad5Fv',
+              flavour: 'affine:latex',
+              props: {
+                latex: 'E=mc^2',
+              },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    const markdown = '$$\nE=mc^2\n$$\n';
+
+    const mdAdapter = new MarkdownAdapter(createJob());
+    const target = await mdAdapter.fromBlockSnapshot({
+      snapshot: blockSnapshot,
+    });
+    expect(target.file).toBe(markdown);
+  });
+
   test('link', async () => {
     const blockSnapshot: BlockSnapshot = {
       type: 'block',
@@ -817,7 +948,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -889,7 +1020,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -958,7 +1089,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1031,7 +1162,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1104,7 +1235,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1413,7 +1544,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1641,7 +1772,7 @@ hhh
             version: 1,
             props: {
               xywh: '[0,0,800,95]',
-              background: '--affine-background-secondary-color',
+              background: DEFAULT_NOTE_BACKGROUND_COLOR,
               index: 'a0',
               hidden: false,
               displayMode: 'both',
@@ -2014,7 +2145,7 @@ describe('markdown to snapshot', () => {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2059,7 +2190,7 @@ describe('markdown to snapshot', () => {
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: 'both',
@@ -2114,7 +2245,7 @@ describe('markdown to snapshot', () => {
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: 'both',
@@ -2169,7 +2300,7 @@ describe('markdown to snapshot', () => {
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: 'both',
@@ -2236,7 +2367,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2406,7 +2537,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2537,7 +2668,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2658,7 +2789,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2712,7 +2843,7 @@ hhh
           flavour: 'affine:note',
           props: {
             xywh: '[0,0,800,95]',
-            background: '--affine-background-secondary-color',
+            background: DEFAULT_NOTE_BACKGROUND_COLOR,
             index: 'a0',
             hidden: false,
             displayMode: 'both',
@@ -2769,7 +2900,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2819,7 +2950,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2870,7 +3001,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2921,7 +3052,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -2975,7 +3106,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -3093,7 +3224,7 @@ hhh
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -3113,6 +3244,90 @@ hhh
               ],
             },
             type: 'text',
+          },
+          children: [],
+        },
+      ],
+    };
+
+    const mdAdapter = new MarkdownAdapter(createJob());
+    const rawBlockSnapshot = await mdAdapter.toBlockSnapshot({
+      file: markdown,
+    });
+    expect(nanoidReplacement(rawBlockSnapshot)).toEqual(blockSnapshot);
+  });
+
+  test('inline latex', async () => {
+    const markdown = 'inline $E=mc^2$ latex\n';
+    const blockSnapshot: BlockSnapshot = {
+      type: 'block',
+      id: 'matchesReplaceMap[0]',
+      flavour: 'affine:note',
+      props: {
+        xywh: '[0,0,800,95]',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
+        index: 'a0',
+        hidden: false,
+        displayMode: NoteDisplayMode.DocAndEdgeless,
+      },
+      children: [
+        {
+          type: 'block',
+          id: 'matchesReplaceMap[1]',
+          flavour: 'affine:paragraph',
+          props: {
+            type: 'text',
+            text: {
+              '$blocksuite:internal:text$': true,
+              delta: [
+                {
+                  insert: 'inline ',
+                },
+                {
+                  insert: ' ',
+                  attributes: {
+                    latex: 'E=mc^2',
+                  },
+                },
+                {
+                  insert: ' latex',
+                },
+              ],
+            },
+          },
+          children: [],
+        },
+      ],
+    };
+
+    const mdAdapter = new MarkdownAdapter(createJob());
+    const rawBlockSnapshot = await mdAdapter.toBlockSnapshot({
+      file: markdown,
+    });
+    expect(nanoidReplacement(rawBlockSnapshot)).toEqual(blockSnapshot);
+  });
+
+  test('latex block', async () => {
+    const markdown = '$$\nE=mc^2\n$$\n';
+
+    const blockSnapshot: BlockSnapshot = {
+      type: 'block',
+      id: 'matchesReplaceMap[0]',
+      flavour: 'affine:note',
+      props: {
+        xywh: '[0,0,800,95]',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
+        index: 'a0',
+        hidden: false,
+        displayMode: NoteDisplayMode.DocAndEdgeless,
+      },
+      children: [
+        {
+          type: 'block',
+          id: 'matchesReplaceMap[1]',
+          flavour: 'affine:latex',
+          props: {
+            latex: 'E=mc^2',
           },
           children: [],
         },

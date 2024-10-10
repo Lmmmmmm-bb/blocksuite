@@ -4,8 +4,8 @@ import {
   requestConnectedFrame,
 } from '@blocksuite/affine-shared/utils';
 import { DisposableGroup } from '@blocksuite/global/utils';
-import { LitElement, css, html } from 'lit';
-import { customElement, query } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { query } from 'lit/decorators.js';
 
 /**
  * A scrollbar that is only visible when the user is interacting with it.
@@ -27,14 +27,7 @@ import { customElement, query } from 'lit/decorators.js';
  * Note:
  * - It only works with vertical scrollbars.
  */
-@customElement('overlay-scrollbar')
 export class OverlayScrollbar extends LitElement {
-  private _disposable = new DisposableGroup();
-
-  private _handleVisible = false;
-
-  private _scrollable: HTMLElement | null = null;
-
   static override styles = css`
     :host {
       position: fixed;
@@ -55,6 +48,12 @@ export class OverlayScrollbar extends LitElement {
       width: 6px;
     }
   `;
+
+  private _disposable = new DisposableGroup();
+
+  private _handleVisible = false;
+
+  private _scrollable: HTMLElement | null = null;
 
   private _dragHandle(event: PointerEvent) {
     let startY = event.clientY;

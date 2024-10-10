@@ -1,6 +1,6 @@
-// eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { EdgelessEditor, createEmptyDoc } from '@blocksuite/presets';
-import '@blocksuite/presets/themes/affine.css';
+import { createEmptyDoc, EdgelessEditor } from '@blocksuite/presets';
+
+import '../../../style.css';
 
 const doc = createEmptyDoc().init();
 const editor = new EdgelessEditor();

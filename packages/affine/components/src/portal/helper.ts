@@ -1,9 +1,10 @@
-import { Slot, assertExists } from '@blocksuite/global/utils';
+import { assertExists, Slot } from '@blocksuite/global/utils';
 import {
-  type ComputePositionReturn,
   autoUpdate,
   computePosition,
+  type ComputePositionReturn,
 } from '@floating-ui/dom';
+import { cssVar } from '@toeverything/theme';
 import { render } from 'lit';
 
 import type { AdvancedPortalOptions, PortalOptions } from './types.js';
@@ -61,6 +62,11 @@ export function createSimplePortal({
   updatePortal(updateId);
   container.append(portalRoot);
 
+  // affine's modal will set pointer-events: none to body
+  // in order to avoid the issue that the floating element in blocksuite cannot be clicked
+  // we add pointer-events: auto here
+  portalRoot.style.pointerEvents = 'auto';
+
   return portalRoot;
 }
 
@@ -113,6 +119,7 @@ export function createLitPortal({
   computePosition: positionConfigOrFn,
   abortController,
   closeOnClickAway = false,
+  positionStrategy = 'absolute',
   ...portalOptions
 }: AdvancedPortalOptions) {
   let positionSlot = new Slot<ComputePositionReturn>();
@@ -154,9 +161,10 @@ export function createLitPortal({
 
   const visibility = portalRoot.style.visibility;
   portalRoot.style.visibility = 'hidden';
-  portalRoot.style.position = 'fixed';
+  portalRoot.style.position = positionStrategy;
   portalRoot.style.left = '0';
   portalRoot.style.top = '0';
+  portalRoot.style.zIndex = cssVar('zIndexPopover');
 
   Object.assign(portalRoot.style, portalOptions.portalStyles);
 
@@ -174,7 +182,10 @@ export function createLitPortal({
     ) {
       abortController.abort();
     }
-    computePosition(referenceElement, portalRoot, options)
+    computePosition(referenceElement, portalRoot, {
+      strategy: positionStrategy,
+      ...options,
+    })
       .then(positionReturn => {
         const { x, y } = positionReturn;
         // Use transform maybe cause overlay-mask offset issue

@@ -5,15 +5,14 @@ import {
   ErrorCode,
   handleError,
 } from '@blocksuite/global/exceptions';
-import { Slot } from '@blocksuite/global/utils';
+import { SignalWatcher, Slot, WithDisposable } from '@blocksuite/global/utils';
 import { Doc } from '@blocksuite/store';
 import { type BlockModel, BlockViewType } from '@blocksuite/store';
 import { createContext, provide } from '@lit/context';
-import { SignalWatcher } from '@lit-labs/preact-signals';
-import { LitElement, type TemplateResult, css, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, LitElement, nothing, type TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { type StaticValue, html, unsafeStatic } from 'lit/static-html.js';
+import { html, type StaticValue, unsafeStatic } from 'lit/static-html.js';
 
 import type { CommandManager } from '../../command/index.js';
 import type { UIEventDispatcher } from '../../event/index.js';
@@ -24,7 +23,7 @@ import type { ViewStore } from '../view-store.js';
 
 import { WidgetViewMapIdentifier } from '../../identifier.js';
 import { PropTypes, requiredProperties } from '../decorators/index.js';
-import { WithDisposable } from '../utils/with-disposable.js';
+import { BLOCK_ID_ATTR, WIDGET_ID_ATTR } from './consts.js';
 import { ShadowlessElement } from './shadowless-element.js';
 
 export const docContext = createContext<Doc>('doc');
@@ -34,10 +33,18 @@ export const stdContext = createContext<BlockStdScope>('std');
   doc: PropTypes.instanceOf(Doc),
   std: PropTypes.object,
 })
-@customElement('editor-host')
 export class EditorHost extends SignalWatcher(
   WithDisposable(ShadowlessElement)
 ) {
+  static override styles = css`
+    editor-host {
+      outline: none;
+      isolation: isolate;
+      display: block;
+      height: 100%;
+    }
+  `;
+
   private _renderModel = (model: BlockModel): TemplateResult => {
     const { flavour } = model;
     const block = this.doc.getBlock(model.id);
@@ -57,7 +64,7 @@ export class EditorHost extends SignalWatcher(
     const tag = typeof view === 'function' ? view(model) : view;
     const widgets: Record<string, TemplateResult> = widgetViewMap
       ? Object.entries(widgetViewMap).reduce((mapping, [key, tag]) => {
-          const template = html`<${tag} ${unsafeStatic(this.widgetIdAttr)}=${key}></${tag}>`;
+          const template = html`<${tag} ${unsafeStatic(WIDGET_ID_ATTR)}=${key}></${tag}>`;
 
           return {
             ...mapping,
@@ -67,39 +74,57 @@ export class EditorHost extends SignalWatcher(
       : {};
 
     return html`<${tag}
-      ${unsafeStatic(this.blockIdAttr)}=${model.id}
+      ${unsafeStatic(BLOCK_ID_ATTR)}=${model.id}
       .widgets=${widgets}
       .viewType=${block.blockViewType}
     ></${tag}>`;
   };
 
-  static override styles = css`
-    editor-host {
-      outline: none;
-      isolation: isolate;
-    }
-  `;
+  /**
+   * @deprecated
+   * Render a block model manually instead of let blocksuite render it.
+   * If you render the same block model multiple times,
+   * the event flow and data binding will be broken.
+   * Only use this method as a last resort.
+   */
+  dangerouslyRenderModel = (model: BlockModel): TemplateResult => {
+    return this._renderModel(model);
+  };
 
-  renderChildren = (model: BlockModel): TemplateResult => {
+  renderChildren = (
+    model: BlockModel,
+    filter?: (model: BlockModel) => boolean
+  ): TemplateResult => {
     return html`${repeat(
-      model.children,
+      model.children.filter(filter ?? (() => true)),
       child => child.id,
       child => this._renderModel(child)
     )}`;
   };
 
-  /**
-   * @deprecated
-   *
-   * This method is deprecated. Use `renderSpecPortal` instead.
-   */
-  renderModel = (model: BlockModel): TemplateResult => {
-    return this._renderModel(model);
-  };
-
   readonly slots = {
     unmounted: new Slot(),
   };
+
+  get command(): CommandManager {
+    return this.std.command;
+  }
+
+  get event(): UIEventDispatcher {
+    return this.std.event;
+  }
+
+  get range(): RangeManager {
+    return this.std.range;
+  }
+
+  get selection(): SelectionManager {
+    return this.std.selection;
+  }
+
+  get view(): ViewStore {
+    return this.std.view;
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -165,29 +190,6 @@ export class EditorHost extends SignalWatcher(
     return this._renderModel(root);
   }
 
-  get command(): CommandManager {
-    return this.std.command;
-  }
-
-  get event(): UIEventDispatcher {
-    return this.std.event;
-  }
-
-  get range(): RangeManager {
-    return this.std.range;
-  }
-
-  get selection(): SelectionManager {
-    return this.std.selection;
-  }
-
-  get view(): ViewStore {
-    return this.std.view;
-  }
-
-  @property({ attribute: false })
-  accessor blockIdAttr = 'data-block-id';
-
   @provide({ context: docContext })
   @property({ attribute: false })
   accessor doc!: Doc;
@@ -195,9 +197,6 @@ export class EditorHost extends SignalWatcher(
   @provide({ context: stdContext })
   @property({ attribute: false })
   accessor std!: BlockSuite.Std;
-
-  @property({ attribute: false })
-  accessor widgetIdAttr = 'data-widget-id';
 }
 
 declare global {

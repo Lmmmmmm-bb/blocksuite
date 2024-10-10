@@ -1,11 +1,11 @@
+import type { BrushElementModel } from '@blocksuite/affine-model';
 import type { PointerEventState } from '@blocksuite/block-std';
 import type { IVec } from '@blocksuite/global/utils';
 
+import { CanvasElementType } from '@blocksuite/affine-block-surface';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
 import { assertExists, noop } from '@blocksuite/global/utils';
 
-import type { BrushElementModel } from '../../../surface-block/index.js';
-
-import { CanvasElementType } from '../../../surface-block/index.js';
 import { EdgelessToolController } from './edgeless-tool.js';
 
 type BrushTool = {
@@ -13,13 +13,11 @@ type BrushTool = {
 };
 
 export class BrushToolController extends EdgelessToolController<BrushTool> {
+  static BRUSH_POP_GAP = 20;
+
   private _draggingElement: BrushElementModel | null = null;
 
   private _draggingElementId: string | null = null;
-
-  protected _draggingPathPoints: number[][] | null = null;
-
-  protected _draggingPathPressures: number[] | null = null;
 
   private _lastPoint: IVec | null = null;
 
@@ -29,7 +27,9 @@ export class BrushToolController extends EdgelessToolController<BrushTool> {
 
   private _straightLineType: 'horizontal' | 'vertical' | null = null;
 
-  static BRUSH_POP_GAP = 20;
+  protected _draggingPathPoints: number[][] | null = null;
+
+  protected _draggingPathPressures: number[] | null = null;
 
   readonly tool = {
     type: 'brush',
@@ -174,13 +174,15 @@ export class BrushToolController extends EdgelessToolController<BrushTool> {
       points,
     });
 
-    this._service.telemetryService?.track('CanvasElementAdded', {
-      control: 'canvas:draw',
-      page: 'whiteboard editor',
-      module: 'toolbar',
-      segment: 'toolbar',
-      type: CanvasElementType.BRUSH,
-    });
+    this._service.std
+      .getOptional(TelemetryProvider)
+      ?.track('CanvasElementAdded', {
+        control: 'canvas:draw',
+        page: 'whiteboard editor',
+        module: 'toolbar',
+        segment: 'toolbar',
+        type: CanvasElementType.BRUSH,
+      });
 
     const element = this._service.getElementById(id) as BrushElementModel;
 

@@ -3,20 +3,19 @@ import {
   LightLoadingIcon,
 } from '@blocksuite/affine-components/icons';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { WithDisposable } from '@blocksuite/block-std';
-import { baseTheme } from '@toeverything/theme';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { baseTheme, cssVar } from '@toeverything/theme';
 import {
-  LitElement,
-  type PropertyValues,
   css,
   html,
+  LitElement,
   nothing,
+  type PropertyValues,
   unsafeCSS,
 } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 
-@customElement('generating-placeholder')
-class GeneratingPlaceholder extends WithDisposable(LitElement) {
+export class GeneratingPlaceholder extends WithDisposable(LitElement) {
   static override styles = css`
     :host {
       display: flex;
@@ -29,7 +28,7 @@ class GeneratingPlaceholder extends WithDisposable(LitElement) {
 
     .generating-header {
       width: 100%;
-      font-size: var(--affine-font-xs);
+      font-size: ${unsafeCSS(cssVar('fontXs'))};
       font-style: normal;
       font-weight: 500;
       line-height: 20px;
@@ -38,7 +37,7 @@ class GeneratingPlaceholder extends WithDisposable(LitElement) {
 
     .generating-header,
     .loading-progress {
-      color: var(--affine-text-secondary-color);
+      color: ${unsafeCSS(cssVar('textSecondaryColor'))};
       font-family: ${unsafeCSS(baseTheme.fontSansFamily)};
     }
 
@@ -50,9 +49,9 @@ class GeneratingPlaceholder extends WithDisposable(LitElement) {
       box-sizing: border-box;
       width: 100%;
       border-radius: 4px;
-      border: 2px solid var(--affine-primary-color, #1e96eb);
-      background: var(--affine-blue-50, #effaff);
-      color: var(--affine-brand-color);
+      border: 2px solid ${unsafeCSS(cssVar('primaryColor'))};
+      background: ${unsafeCSS(cssVar('blue50'))};
+      color: ${unsafeCSS(cssVar('brandColor'))};
       gap: 4px;
     }
 
@@ -77,13 +76,13 @@ class GeneratingPlaceholder extends WithDisposable(LitElement) {
     }
 
     .loading-text {
-      font-size: var(--affine-font-base);
+      font-size: ${unsafeCSS(cssVar('fontBase'))};
       height: 24px;
       line-height: 24px;
     }
 
     .loading-stage {
-      font-size: var(--affine-font-xs);
+      font-size: ${unsafeCSS(cssVar('fontXs'))};
       height: 20px;
       line-height: 20px;
     }
@@ -103,7 +102,7 @@ class GeneratingPlaceholder extends WithDisposable(LitElement) {
         : nothing}
       <div class="generating-body">
         <div class="generating-icon">
-          ${theme === 'light' ? LightLoadingIcon : DarkLoadingIcon}
+          ${theme === 'light' ? DarkLoadingIcon : LightLoadingIcon}
         </div>
         <div class="loading-progress">
           <div class="loading-text">${loadingText}</div>

@@ -1,12 +1,11 @@
 import { ReleaseFromGroupButtonIcon } from '@blocksuite/affine-components/icons';
 import { GroupElementModel } from '@blocksuite/affine-model';
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 
-@customElement('edgeless-release-from-group-button')
 export class EdgelessReleaseFromGroupButton extends WithDisposable(LitElement) {
   private _releaseFromGroup() {
     const service = this.edgeless.service;
@@ -19,9 +18,7 @@ export class EdgelessReleaseFromGroupButton extends WithDisposable(LitElement) {
     // eslint-disable-next-line unicorn/prefer-dom-node-remove
     group.removeChild(element);
 
-    element.index = service.layer.generateIndex(
-      'flavour' in element ? element.flavour : element.type
-    );
+    element.index = service.layer.generateIndex();
 
     const parent = group.group;
     if (parent instanceof GroupElementModel) {

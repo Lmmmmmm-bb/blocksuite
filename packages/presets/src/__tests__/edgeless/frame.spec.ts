@@ -1,6 +1,9 @@
-import type { EdgelessRootBlockComponent } from '@blocksuite/blocks';
+import type {
+  EdgelessRootBlockComponent,
+  FrameBlockComponent,
+} from '@blocksuite/blocks';
 
-import { DocMode } from '@blocksuite/blocks';
+import { assertType } from '@blocksuite/global/utils';
 import { Text } from '@blocksuite/store';
 import { beforeEach, describe, expect, test } from 'vitest';
 
@@ -12,7 +15,7 @@ describe('frame', () => {
   let service!: EdgelessRootBlockComponent['service'];
 
   beforeEach(async () => {
-    const cleanup = await setupEditor(DocMode.Edgeless);
+    const cleanup = await setupEditor('edgeless');
     service = getDocRootBlock(window.doc, window.editor, 'edgeless').service;
 
     return cleanup;
@@ -68,11 +71,11 @@ describe('frame', () => {
   test('frame should always be placed under the bottom of other blocks', async () => {
     addNote(doc, {
       xywh: '[0,0,300,300]',
-      index: service.layer.generateIndex('affine:note'),
+      index: service.layer.generateIndex(),
     });
     addNote(doc, {
       xywh: '[100,100,300,300]',
-      index: service.layer.generateIndex('affine:note'),
+      index: service.layer.generateIndex(),
     });
     const frameId = service.doc.addBlock(
       'affine:frame',
@@ -83,7 +86,7 @@ describe('frame', () => {
       service.surface.id
     );
     service.zoomToFit();
-    await wait();
+    await wait(500); // fit has a transition animation
 
     const frameTitle = document.querySelector(
       `[data-block-id="${frameId}"] .affine-frame-title`
@@ -97,17 +100,40 @@ describe('frame', () => {
     const pointDom1 = document.elementFromPoint(
       titleRect.x + titleRect.width / 2,
       titleRect.y + titleRect.height / 2
-    ) as HTMLElement;
+    );
     const pointDom2 = document.elementFromPoint(
       bodyRect.x + bodyRect.width / 2,
       bodyRect.y + bodyRect.height / 2
-    ) as HTMLElement;
+    );
 
-    expect(pointDom1.className, 'Frame title should be on top').toBe(
-      'affine-frame-title'
+    expect(
+      frameTitle.contains(pointDom1),
+      'Frame title should be on top'
+    ).toBeTruthy();
+
+    expect(
+      frameBody.contains(pointDom2),
+      'Frame body should be on bottom'
+    ).toBeFalsy();
+  });
+
+  test('frame should have externalXYWH after moving viewport to contains frame', async () => {
+    const frameId = service.doc.addBlock(
+      'affine:frame',
+      {
+        xywh: '[1800,1800,200,200]',
+        title: new Text('Frame 1'),
+      },
+      service.surface.id
     );
-    expect(pointDom2.className, 'Frame body should be on bottom').toBe(
-      'affine-note-mask'
-    );
+    await wait();
+
+    const frame = service.doc.getBlock(frameId);
+    expect(frame).toBeTruthy();
+
+    assertType<FrameBlockComponent>(frame);
+
+    service.viewport.setCenter(900, 900);
+    expect(frame?.model.externalXYWH).toBeDefined();
   });
 });

@@ -1,10 +1,15 @@
 import {
   ConnectorMode,
   DEFAULT_CONNECTOR_COLOR,
+  DEFAULT_CONNECTOR_TEXT_COLOR,
   DEFAULT_FRONT_END_POINT_STYLE,
   DEFAULT_NOTE_BACKGROUND_COLOR,
+  DEFAULT_NOTE_BORDER_SIZE,
+  DEFAULT_NOTE_BORDER_STYLE,
+  DEFAULT_NOTE_CORNER,
   DEFAULT_NOTE_SHADOW,
   DEFAULT_REAR_END_POINT_STYLE,
+  DEFAULT_ROUGHNESS,
   DEFAULT_SHAPE_FILL_COLOR,
   DEFAULT_SHAPE_STROKE_COLOR,
   DEFAULT_SHAPE_TEXT_COLOR,
@@ -13,36 +18,37 @@ import {
   FontFamily,
   FontStyle,
   FontWeight,
+  FrameBackgroundColorsSchema,
+  LayoutType,
   LineColor,
   LineColorsSchema,
   LineWidth,
+  MindmapStyle,
   NoteBackgroundColorsSchema,
   NoteDisplayMode,
   NoteShadowsSchema,
   PointStyle,
   ShapeStyle,
-  ShapeTextFontSize,
-  ShapeType,
   StrokeColorsSchema,
   StrokeStyle,
   TextAlign,
   TextVerticalAlign,
 } from '@blocksuite/affine-model';
-import { z } from 'zod';
+import { z, ZodDefault, ZodObject, type ZodTypeAny, ZodUnion } from 'zod';
 
 const ConnectorEndpointSchema = z.nativeEnum(PointStyle);
 const StrokeStyleSchema = z.nativeEnum(StrokeStyle);
 const LineWidthSchema = z.nativeEnum(LineWidth);
 const ShapeStyleSchema = z.nativeEnum(ShapeStyle);
-const ShapeTextFontSizeSchema = z.nativeEnum(ShapeTextFontSize);
 const FontFamilySchema = z.nativeEnum(FontFamily);
 const FontWeightSchema = z.nativeEnum(FontWeight);
 const FontStyleSchema = z.nativeEnum(FontStyle);
 const TextAlignSchema = z.nativeEnum(TextAlign);
 const TextVerticalAlignSchema = z.nativeEnum(TextVerticalAlign);
-const ShapeTypeSchema = z.nativeEnum(ShapeType);
 const NoteDisplayModeSchema = z.nativeEnum(NoteDisplayMode);
 const ConnectorModeSchema = z.nativeEnum(ConnectorMode);
+const LayoutTypeSchema = z.nativeEnum(LayoutType);
+const MindmapStyleSchema = z.nativeEnum(MindmapStyle);
 
 export const ColorSchema = z.union([
   z.object({
@@ -61,6 +67,10 @@ const NoteBackgroundColorSchema = z.union([
   NoteBackgroundColorsSchema,
   ColorSchema,
 ]);
+const FrameBackgroundColorSchema = z.union([
+  FrameBackgroundColorsSchema,
+  ColorSchema,
+]);
 
 export const ConnectorSchema = z
   .object({
@@ -71,6 +81,14 @@ export const ConnectorSchema = z
     strokeWidth: LineWidthSchema,
     rough: z.boolean(),
     mode: ConnectorModeSchema,
+    labelStyle: z.object({
+      color: TextColorSchema,
+      fontSize: z.number(),
+      fontFamily: FontFamilySchema,
+      fontWeight: FontWeightSchema,
+      fontStyle: FontStyleSchema,
+      textAlign: TextAlignSchema,
+    }),
   })
   .default({
     frontEndpointStyle: DEFAULT_FRONT_END_POINT_STYLE,
@@ -80,6 +98,14 @@ export const ConnectorSchema = z
     strokeWidth: LineWidth.Two,
     rough: false,
     mode: ConnectorMode.Curve,
+    labelStyle: {
+      color: DEFAULT_CONNECTOR_TEXT_COLOR,
+      fontSize: 16,
+      fontFamily: FontFamily.Inter,
+      fontWeight: FontWeight.Regular,
+      fontStyle: FontStyle.Normal,
+      textAlign: TextAlign.Center,
+    },
   });
 
 export const BrushSchema = z
@@ -95,70 +121,80 @@ export const BrushSchema = z
     lineWidth: LineWidth.Four,
   });
 
-export const ShapeSchema = z
-  .object({
-    color: TextColorSchema,
-    shapeType: ShapeTypeSchema,
-    fillColor: ShapeFillColorSchema,
-    strokeColor: ShapeStrokeColorSchema,
-    strokeStyle: StrokeStyleSchema,
-    strokeWidth: z.number(),
-    shapeStyle: ShapeStyleSchema,
-    filled: z.boolean(),
-    radius: z.number(),
-    fontSize: ShapeTextFontSizeSchema.optional(),
-    fontFamily: FontFamilySchema.optional(),
-    fontWeight: FontWeightSchema.optional(),
-    fontStyle: FontStyleSchema.optional(),
-    textAlign: TextAlignSchema.optional(),
-    textHorizontalAlign: TextAlignSchema.optional(),
-    textVerticalAlign: TextVerticalAlignSchema.optional(),
-    roughness: z.number().optional(),
-  })
-  .default({
-    color: DEFAULT_SHAPE_TEXT_COLOR,
-    shapeType: ShapeType.Rect,
-    fillColor: DEFAULT_SHAPE_FILL_COLOR,
-    strokeColor: DEFAULT_SHAPE_STROKE_COLOR,
-    strokeStyle: StrokeStyle.Solid,
-    strokeWidth: LineWidth.Two,
-    shapeStyle: ShapeStyle.General,
-    filled: true,
-    radius: 0,
-  });
+const DEFAULT_SHAPE = {
+  color: DEFAULT_SHAPE_TEXT_COLOR,
+  fillColor: DEFAULT_SHAPE_FILL_COLOR,
+  strokeColor: DEFAULT_SHAPE_STROKE_COLOR,
+  strokeStyle: StrokeStyle.Solid,
+  strokeWidth: LineWidth.Two,
+  shapeStyle: ShapeStyle.General,
+  filled: true,
+  radius: 0,
+  fontSize: 20,
+  fontFamily: FontFamily.Inter,
+  fontWeight: FontWeight.Regular,
+  fontStyle: FontStyle.Normal,
+  textAlign: TextAlign.Center,
+  roughness: DEFAULT_ROUGHNESS,
+};
+
+const ShapeObject = {
+  color: TextColorSchema,
+  fillColor: ShapeFillColorSchema,
+  strokeColor: ShapeStrokeColorSchema,
+  strokeStyle: StrokeStyleSchema,
+  strokeWidth: z.number(),
+  shapeStyle: ShapeStyleSchema,
+  filled: z.boolean(),
+  radius: z.number(),
+  fontSize: z.number(),
+  fontFamily: FontFamilySchema,
+  fontWeight: FontWeightSchema,
+  fontStyle: FontStyleSchema,
+  textAlign: TextAlignSchema,
+  textHorizontalAlign: TextAlignSchema.optional(),
+  textVerticalAlign: TextVerticalAlignSchema.optional(),
+  roughness: z.number(),
+};
+
+export const ShapeSchema = z.object(ShapeObject).default(DEFAULT_SHAPE);
+
+export const RoundedShapeSchema = z
+  .object(ShapeObject)
+  .default({ ...DEFAULT_SHAPE, radius: 0.1 });
 
 export const TextSchema = z
   .object({
     color: TextColorSchema,
+    fontSize: z.number(),
     fontFamily: FontFamilySchema,
-    textAlign: TextAlignSchema,
     fontWeight: FontWeightSchema,
     fontStyle: FontStyleSchema,
-    fontSize: z.number(),
+    textAlign: TextAlignSchema,
   })
   .default({
     color: DEFAULT_TEXT_COLOR,
+    fontSize: 24,
     fontFamily: FontFamily.Inter,
-    textAlign: TextAlign.Left,
     fontWeight: FontWeight.Regular,
     fontStyle: FontStyle.Normal,
-    fontSize: 24,
+    textAlign: TextAlign.Left,
   });
 
 export const EdgelessTextSchema = z
   .object({
     color: TextColorSchema,
     fontFamily: FontFamilySchema,
-    textAlign: TextAlignSchema,
     fontWeight: FontWeightSchema,
     fontStyle: FontStyleSchema,
+    textAlign: TextAlignSchema,
   })
   .default({
     color: DEFAULT_TEXT_COLOR,
     fontFamily: FontFamily.Inter,
-    textAlign: TextAlign.Left,
     fontWeight: FontWeight.Regular,
     fontStyle: FontStyle.Normal,
+    textAlign: TextAlign.Left,
   });
 
 export const NoteSchema = z
@@ -176,13 +212,66 @@ export const NoteSchema = z
   })
   .default({
     background: DEFAULT_NOTE_BACKGROUND_COLOR,
-    displayMode: NoteDisplayMode.DocAndEdgeless,
+    displayMode: NoteDisplayMode.EdgelessOnly,
     edgeless: {
       style: {
-        borderRadius: 0,
-        borderSize: 4,
-        borderStyle: StrokeStyle.None,
+        borderRadius: DEFAULT_NOTE_CORNER,
+        borderSize: DEFAULT_NOTE_BORDER_SIZE,
+        borderStyle: DEFAULT_NOTE_BORDER_STYLE,
         shadowType: DEFAULT_NOTE_SHADOW,
       },
     },
   });
+
+export const MindmapSchema = z
+  .object({
+    layoutType: LayoutTypeSchema,
+    style: MindmapStyleSchema,
+  })
+  .default({
+    layoutType: LayoutType.RIGHT,
+    style: MindmapStyle.ONE,
+  });
+
+export const FrameSchema = z
+  .object({
+    background: FrameBackgroundColorSchema.optional(),
+  })
+  .default({});
+
+export const NodePropsSchema = z.object({
+  connector: ConnectorSchema,
+  brush: BrushSchema,
+  text: TextSchema,
+  mindmap: MindmapSchema,
+  'affine:edgeless-text': EdgelessTextSchema,
+  'affine:note': NoteSchema,
+  'affine:frame': FrameSchema,
+  // shapes
+  'shape:diamond': ShapeSchema,
+  'shape:ellipse': ShapeSchema,
+  'shape:rect': ShapeSchema,
+  'shape:triangle': ShapeSchema,
+  'shape:roundedRect': RoundedShapeSchema,
+});
+
+export type NodeProps = z.infer<typeof NodePropsSchema>;
+
+export function makeDeepOptional(schema: ZodTypeAny): ZodTypeAny {
+  if (schema instanceof ZodDefault) {
+    return makeDeepOptional(schema._def.innerType);
+  }
+  if (schema instanceof ZodObject) {
+    const shape = schema.shape;
+    const deepOptionalShape = Object.fromEntries(
+      Object.entries(shape).map(([key, value]) => {
+        return [key, makeDeepOptional(value as ZodTypeAny)];
+      })
+    );
+    return z.object(deepOptionalShape).optional();
+  } else if (schema instanceof ZodUnion) {
+    return schema.or(z.undefined());
+  } else {
+    return schema.optional();
+  }
+}

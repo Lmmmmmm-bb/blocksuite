@@ -1,6 +1,13 @@
+import type {
+  EmbedFigmaBlockComponent,
+  EmbedGithubBlockComponent,
+  EmbedLoomBlockComponent,
+  EmbedYoutubeBlockComponent,
+} from '@blocksuite/affine-block-embed';
 import type { MenuItemGroup } from '@blocksuite/affine-components/toolbar';
 
 import { isPeekable, peek } from '@blocksuite/affine-components/peek';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
 import { Bound } from '@blocksuite/global/utils';
 import {
   ArrowDownBigBottomIcon,
@@ -20,10 +27,6 @@ import {
 
 import type { AttachmentBlockComponent } from '../../../../attachment-block/attachment-block.js';
 import type { BookmarkBlockComponent } from '../../../../bookmark-block/bookmark-block.js';
-import type { EmbedFigmaBlockComponent } from '../../../../embed-figma-block/embed-figma-block.js';
-import type { EmbedGithubBlockComponent } from '../../../../embed-github-block/embed-github-block.js';
-import type { EmbedLoomBlockComponent } from '../../../../embed-loom-block/embed-loom-block.js';
-import type { EmbedYoutubeBlockComponent } from '../../../../embed-youtube-block/embed-youtube-block.js';
 import type { ImageBlockComponent } from '../../../../image-block/image-block.js';
 import type { ElementToolbarMoreMenuContext } from './context.js';
 
@@ -35,7 +38,7 @@ import {
 } from '../../../../_common/utils/render-linked-doc.js';
 import { edgelessElementsBound } from '../../../edgeless/utils/bound-utils.js';
 import { duplicate } from '../../../edgeless/utils/clipboard-utils.js';
-import { getCloneElements } from '../../../edgeless/utils/clone-utils.js';
+import { getSortedCloneElements } from '../../../edgeless/utils/clone-utils.js';
 import { moveConnectors } from '../../../edgeless/utils/connector.js';
 import { deleteElements } from '../../../edgeless/utils/crud.js';
 
@@ -59,11 +62,11 @@ export const sectionGroup: MenuItemGroup<ElementToolbarMoreMenuContext> = {
       icon: FrameIcon({ width: '20', height: '20' }),
       label: 'Frame section',
       type: 'create-frame',
-      action: ({ service, edgeless }) => {
+      action: ({ service, edgeless, std }) => {
         const frame = service.frame.createFrameOnSelected();
         if (!frame) return;
 
-        service.telemetryService?.track('CanvasElementAdded', {
+        std.getOptional(TelemetryProvider)?.track('CanvasElementAdded', {
           control: 'context-menu',
           page: 'whiteboard editor',
           module: 'toolbar',
@@ -246,7 +249,7 @@ export const conversionsGroup: MenuItemGroup<ElementToolbarMoreMenuContext> = {
       label: 'Turn into linked doc',
       type: 'turn-into-linked-doc',
       action: async ctx => {
-        const { doc, service, surface, host } = ctx;
+        const { doc, service, surface, host, std } = ctx;
         const element = ctx.getNoteBlock();
         if (!element) return;
 
@@ -265,20 +268,20 @@ export const conversionsGroup: MenuItemGroup<ElementToolbarMoreMenuContext> = {
           },
           surface.model.id
         );
-        service.telemetryService?.track('CanvasElementAdded', {
+        std.getOptional(TelemetryProvider)?.track('CanvasElementAdded', {
           control: 'context-menu',
           page: 'whiteboard editor',
           module: 'toolbar',
           segment: 'toolbar',
           type: 'embed-synced-doc',
         });
-        service.telemetryService?.track('DocCreated', {
+        std.getOptional(TelemetryProvider)?.track('DocCreated', {
           control: 'turn into linked doc',
           page: 'whiteboard editor',
           module: 'format toolbar',
           type: 'embed-linked-doc',
         });
-        service.telemetryService?.track('LinkedDocCreated', {
+        std.getOptional(TelemetryProvider)?.track('LinkedDocCreated', {
           control: 'turn into linked doc',
           page: 'whiteboard editor',
           module: 'format toolbar',
@@ -301,14 +304,19 @@ export const conversionsGroup: MenuItemGroup<ElementToolbarMoreMenuContext> = {
       icon: LinkedPageIcon({ width: '20', height: '20' }),
       label: 'Create linked doc',
       type: 'create-linked-doc',
-      action: async ({ doc, selection, service, surface, edgeless, host }) => {
+      action: async ({
+        doc,
+        selection,
+        service,
+        surface,
+        edgeless,
+        host,
+        std,
+      }) => {
         const title = await promptDocTitle(host);
         if (title === null) return;
 
-        const elements = getCloneElements(
-          selection.selectedElements,
-          service.frame
-        );
+        const elements = getSortedCloneElements(selection.selectedElements);
         const linkedDoc = createLinkedDocFromEdgelessElements(
           host,
           elements,
@@ -327,20 +335,20 @@ export const conversionsGroup: MenuItemGroup<ElementToolbarMoreMenuContext> = {
           },
           surface.model.id
         );
-        service.telemetryService?.track('CanvasElementAdded', {
+        std.getOptional(TelemetryProvider)?.track('CanvasElementAdded', {
           control: 'context-menu',
           page: 'whiteboard editor',
           module: 'toolbar',
           segment: 'toolbar',
           type: 'embed-linked-doc',
         });
-        service.telemetryService?.track('DocCreated', {
+        std.getOptional(TelemetryProvider)?.track('DocCreated', {
           control: 'create linked doc',
           page: 'whiteboard editor',
           module: 'format toolbar',
           type: 'embed-linked-doc',
         });
-        service.telemetryService?.track('LinkedDocCreated', {
+        std.getOptional(TelemetryProvider)?.track('LinkedDocCreated', {
           control: 'create linked doc',
           page: 'whiteboard editor',
           module: 'format toolbar',

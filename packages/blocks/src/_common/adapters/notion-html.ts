@@ -1,40 +1,41 @@
 import type { DeltaInsert } from '@blocksuite/inline';
-import type {
-  FromBlockSnapshotPayload,
-  FromBlockSnapshotResult,
-  FromDocSnapshotPayload,
-  FromDocSnapshotResult,
-  FromSliceSnapshotPayload,
-  FromSliceSnapshotResult,
-} from '@blocksuite/store';
 
-import { NoteDisplayMode } from '@blocksuite/affine-model';
+import {
+  DEFAULT_NOTE_BACKGROUND_COLOR,
+  NoteDisplayMode,
+} from '@blocksuite/affine-model';
 import { getFilenameFromContentDisposition } from '@blocksuite/affine-shared/utils';
+import { getTagColor } from '@blocksuite/data-view';
 import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
 import { isEqual, sha } from '@blocksuite/global/utils';
 import {
-  ASTWalker,
   type AssetsManager,
+  ASTWalker,
   BaseAdapter,
   type BlockSnapshot,
   type DocSnapshot,
-  type SliceSnapshot,
+  type FromBlockSnapshotPayload,
+  type FromBlockSnapshotResult,
+  type FromDocSnapshotPayload,
+  type FromDocSnapshotResult,
+  type FromSliceSnapshotPayload,
+  type FromSliceSnapshotResult,
   getAssetName,
   nanoid,
+  type SliceSnapshot,
 } from '@blocksuite/store';
 import { collapseWhiteSpace } from 'collapse-white-space';
 import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';
 
-import { getTagColor } from '../../database-block/data-view/utils/tags/colors.js';
 import {
-  type HtmlAST,
   hastGetElementChildren,
   hastGetTextChildrenOnlyAst,
   hastGetTextContent,
   hastQuerySelector,
+  type HtmlAST,
 } from './hast.js';
-import { createText, fetchImage, fetchable, isText } from './utils.js';
+import { createText, fetchable, fetchImage, isText } from './utils.js';
 
 export type NotionHtml = string;
 
@@ -528,6 +529,28 @@ export class NotionHtmlAdapter extends BaseAdapter<NotionHtml> {
                       '$blocksuite:internal:text$': true,
                       delta: this._hastToDelta(o.node, { pageMap }),
                     },
+                  },
+                  children: [],
+                },
+                'children'
+              )
+              .closeNode();
+            context.skipAllChildren();
+            break;
+          }
+          // Notion equation
+          if (hastQuerySelector(o.node, '.equation-container')) {
+            const latex = hastGetTextContent(
+              hastQuerySelector(o.node, 'annotation')
+            );
+            context
+              .openNode(
+                {
+                  type: 'block',
+                  id: nanoid(),
+                  flavour: 'affine:latex',
+                  props: {
+                    latex,
                   },
                   children: [],
                 },
@@ -1085,7 +1108,7 @@ export class NotionHtmlAdapter extends BaseAdapter<NotionHtml> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1116,7 +1139,7 @@ export class NotionHtmlAdapter extends BaseAdapter<NotionHtml> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,
@@ -1177,7 +1200,7 @@ export class NotionHtmlAdapter extends BaseAdapter<NotionHtml> {
       flavour: 'affine:note',
       props: {
         xywh: '[0,0,800,95]',
-        background: '--affine-background-secondary-color',
+        background: DEFAULT_NOTE_BACKGROUND_COLOR,
         index: 'a0',
         hidden: false,
         displayMode: NoteDisplayMode.DocAndEdgeless,

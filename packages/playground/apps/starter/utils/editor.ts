@@ -1,17 +1,28 @@
 import type { BlockCollection, DocCollection } from '@blocksuite/store';
 
-import { BlockServiceWatcher, type EditorHost } from '@blocksuite/block-std';
-import { type PageRootService, SpecProvider } from '@blocksuite/blocks';
-import { AffineFormatBarWidget } from '@blocksuite/blocks';
 import {
-  DocMode,
+  BlockServiceWatcher,
+  type EditorHost,
+  type ExtensionType,
+} from '@blocksuite/block-std';
+import {
+  CommunityCanvasTextFonts,
+  FontConfigExtension,
+  NotificationExtension,
+  type PageRootService,
+  ParseDocUrlExtension,
+  RefNodeSlotsExtension,
+  RefNodeSlotsProvider,
+  SpecProvider,
+} from '@blocksuite/blocks';
+import {
+  AffineFormatBarWidget,
   DocModeProvider,
   toolbarDefaultConfig,
 } from '@blocksuite/blocks';
 import { assertExists } from '@blocksuite/global/utils';
 import { AffineEditorContainer, CommentPanel } from '@blocksuite/presets';
 
-import { CustomChatPanel } from '../../_common/components/custom-chat-panel.js';
 import { CustomFramePanel } from '../../_common/components/custom-frame-panel.js';
 import { CustomOutlinePanel } from '../../_common/components/custom-outline-panel.js';
 import { CustomOutlineViewer } from '../../_common/components/custom-outline-viewer.js';
@@ -20,16 +31,18 @@ import { DocsPanel } from '../../_common/components/docs-panel.js';
 import { LeftSidePanel } from '../../_common/components/left-side-panel.js';
 import { SidePanel } from '../../_common/components/side-panel.js';
 import {
+  mockDocModeService,
   mockNotificationService,
-  mockQuickSearchService,
+  mockParseDocUrlService,
 } from '../../_common/mock-services';
 
-function setDocModeFromUrlParams(service: DocModeProvider) {
+function setDocModeFromUrlParams(service: DocModeProvider, docId: string) {
   const params = new URLSearchParams(location.search);
   const paramMode = params.get('mode');
   if (paramMode) {
-    const docMode = paramMode === 'page' ? DocMode.Page : DocMode.Edgeless;
-    service.setMode(docMode);
+    const docMode = paramMode === 'page' ? 'page' : 'edgeless';
+    service.setPrimaryMode(docMode, docId);
+    service.setEditorMode(docMode);
   }
 }
 
@@ -64,42 +77,55 @@ export async function mountDefaultDocEditor(collection: DocCollection) {
         }
       );
       pageRootService.disposables.add(onFormatBarConnected);
-      pageRootService.notificationService =
-        mockNotificationService(pageRootService);
-      pageRootService.quickSearchService = mockQuickSearchService(collection);
-      const switchEditor = editor.switchEditor.bind(editor);
-      pageRootService.disposables.add(
-        pageRootService.std.get(DocModeProvider).onModeChange(switchEditor)
-      );
     }
   }
 
+  const refNodeSlotsExtension = RefNodeSlotsExtension();
+  const extensions: ExtensionType[] = [
+    refNodeSlotsExtension,
+    PatchPageServiceWatcher,
+    FontConfigExtension(CommunityCanvasTextFonts),
+    ParseDocUrlExtension(mockParseDocUrlService(collection)),
+    NotificationExtension(mockNotificationService(editor)),
+    {
+      setup: di => {
+        di.override(DocModeProvider, () =>
+          mockDocModeService(getEditorModeCallback, setEditorModeCallBack)
+        );
+      },
+    },
+  ];
+
   const pageSpecs = SpecProvider.getInstance().getSpec('page');
-  pageSpecs.extend([PatchPageServiceWatcher]);
+  const setEditorModeCallBack = editor.switchEditor.bind(editor);
+  const getEditorModeCallback = () => editor.mode;
+  pageSpecs.extend([...extensions]);
   editor.pageSpecs = pageSpecs.value;
 
   const edgelessSpecs = SpecProvider.getInstance().getSpec('edgeless');
-  edgelessSpecs.extend([PatchPageServiceWatcher]);
+  edgelessSpecs.extend([...extensions]);
   editor.edgelessSpecs = edgelessSpecs.value;
 
-  editor.mode = DocMode.Page;
+  editor.mode = 'page';
   editor.doc = doc;
-  editor.slots.docLinkClicked.on(({ pageId: docId }) => {
-    const target = collection.getDoc(docId);
-    if (!target) {
-      throw new Error(`Failed to jump to doc ${docId}`);
-    }
-    target.load();
-    editor.doc = target;
-  });
+  editor.std
+    .get(RefNodeSlotsProvider)
+    .docLinkClicked.on(({ pageId: docId }) => {
+      const target = collection.getDoc(docId);
+      if (!target) {
+        throw new Error(`Failed to jump to doc ${docId}`);
+      }
+      target.load();
+      editor.doc = target;
+    });
 
   app.append(editor);
   await editor.updateComplete;
   const modeService = editor.std.provider.get(DocModeProvider);
-  editor.mode = modeService.getMode();
-  setDocModeFromUrlParams(modeService);
+  editor.mode = modeService.getPrimaryMode(doc.id);
+  setDocModeFromUrlParams(modeService, doc.id);
   editor.slots.docUpdated.on(({ newDocId }) => {
-    editor.mode = modeService.getMode(newDocId);
+    editor.mode = modeService.getPrimaryMode(newDocId);
   });
 
   const outlinePanel = new CustomOutlinePanel();
@@ -124,9 +150,6 @@ export async function mountDefaultDocEditor(collection: DocCollection) {
   const commentPanel = new CommentPanel();
   commentPanel.editor = editor;
 
-  const chatPanel = new CustomChatPanel();
-  chatPanel.editor = editor;
-
   const debugMenu = new DebugMenu();
   debugMenu.collection = collection;
   debugMenu.editor = editor;
@@ -137,7 +160,6 @@ export async function mountDefaultDocEditor(collection: DocCollection) {
   debugMenu.leftSidePanel = leftSidePanel;
   debugMenu.docsPanel = docsPanel;
   debugMenu.commentPanel = commentPanel;
-  debugMenu.chatPanel = chatPanel;
 
   document.body.append(outlinePanel);
   document.body.append(outlineViewer);
@@ -145,7 +167,6 @@ export async function mountDefaultDocEditor(collection: DocCollection) {
   document.body.append(sidePanel);
   document.body.append(leftSidePanel);
   document.body.append(debugMenu);
-  document.body.append(chatPanel);
 
   // for multiple editor
   const params = new URLSearchParams(location.search);

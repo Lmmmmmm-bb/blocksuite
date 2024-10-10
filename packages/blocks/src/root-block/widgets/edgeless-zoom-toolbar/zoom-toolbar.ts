@@ -4,17 +4,16 @@ import {
   ViewBarIcon,
 } from '@blocksuite/affine-components/icons';
 import { stopPropagation } from '@blocksuite/affine-shared/utils';
-import { WithDisposable } from '@blocksuite/block-std';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, nothing, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing, unsafeCSS } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 import type { EdgelessTool } from '../../edgeless/types.js';
 
 import { ZOOM_STEP } from '../../edgeless/utils/zoom.js';
 
-@customElement('edgeless-zoom-toolbar')
 export class EdgelessZoomToolbar extends WithDisposable(LitElement) {
   static override styles = css`
     :host {
@@ -88,6 +87,30 @@ export class EdgelessZoomToolbar extends WithDisposable(LitElement) {
   setEdgelessTool = (edgelessTool: EdgelessTool) => {
     this.edgeless.tools.setEdgelessTool(edgelessTool);
   };
+
+  get edgelessService() {
+    return this.edgeless.service;
+  }
+
+  get edgelessTool() {
+    return this.edgeless.edgelessTool;
+  }
+
+  get locked() {
+    return this.edgelessService.locked;
+  }
+
+  get viewport() {
+    return this.edgelessService.viewport;
+  }
+
+  get zoom() {
+    if (!this.viewport) {
+      console.error('Something went wrong, viewport is not available');
+      return 1;
+    }
+    return this.viewport.zoom;
+  }
 
   constructor(edgeless: EdgelessRootBlockComponent) {
     super();
@@ -171,30 +194,6 @@ export class EdgelessZoomToolbar extends WithDisposable(LitElement) {
         </edgeless-tool-icon-button>
       </div>
     `;
-  }
-
-  get edgelessService() {
-    return this.edgeless.service;
-  }
-
-  get edgelessTool() {
-    return this.edgeless.edgelessTool;
-  }
-
-  get locked() {
-    return this.edgelessService.locked;
-  }
-
-  get viewport() {
-    return this.edgelessService.viewport;
-  }
-
-  get zoom() {
-    if (!this.viewport) {
-      console.error('Something went wrong, viewport is not available');
-      return 1;
-    }
-    return this.viewport.zoom;
   }
 
   @property({ attribute: false })

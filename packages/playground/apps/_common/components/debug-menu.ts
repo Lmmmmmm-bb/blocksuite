@@ -1,32 +1,29 @@
-/* eslint-disable @typescript-eslint/no-restricted-imports */
 import type { SerializedXYWH } from '@blocksuite/global/utils';
 import type { DeltaInsert } from '@blocksuite/inline/types';
 import type { SlDropdown } from '@shoelace-style/shoelace';
 import type { Pane } from 'tweakpane';
 
-import { type EditorHost, ShadowlessElement } from '@blocksuite/block-std';
-import {
-  type DocMode,
-  DocModeProvider,
-  type EdgelessRootService,
-} from '@blocksuite/blocks';
+import { ShadowlessElement } from '@blocksuite/block-std';
 import {
   type AffineTextAttributes,
   ColorVariables,
+  defaultImageProxyMiddleware,
+  type DocMode,
+  DocModeProvider,
+  EdgelessRootService,
+  ExportManager,
   FontFamilyVariables,
   HtmlTransformer,
+  MarkdownAdapter,
   MarkdownTransformer,
   NotionHtmlAdapter,
-  SizeVariables,
-  StyleVariables,
-  type SurfaceBlockComponent,
-  ZipTransformer,
-  defaultImageProxyMiddleware,
   openFileOrFiles,
   printToPdf,
+  SizeVariables,
+  StyleVariables,
   toast,
+  ZipTransformer,
 } from '@blocksuite/blocks';
-import { assertExists } from '@blocksuite/global/utils';
 import { AffineEditorContainer, type CommentPanel } from '@blocksuite/presets';
 import { type DocCollection, Job, Text } from '@blocksuite/store';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
@@ -42,14 +39,13 @@ import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
-import '@shoelace-style/shoelace/dist/themes/dark.css';
 import '@shoelace-style/shoelace/dist/themes/light.css';
+import '@shoelace-style/shoelace/dist/themes/dark.css';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
 import { css, html } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import * as lz from 'lz-string';
 
-import type { CustomChatPanel } from './custom-chat-panel.js';
 import type { CustomFramePanel } from './custom-frame-panel.js';
 import type { CustomOutlinePanel } from './custom-outline-panel.js';
 import type { CustomOutlineViewer } from './custom-outline-viewer.js';
@@ -60,24 +56,9 @@ import type { SidePanel } from './side-panel.js';
 import './left-side-panel.js';
 import './side-panel.js';
 
-const basePath = import.meta.env.DEV
-  ? '/node_modules/@shoelace-style/shoelace/dist'
-  : 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/dist';
+const basePath =
+  'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/dist';
 setBasePath(basePath);
-
-export function getSurfaceElementFromEditor(editorHost: EditorHost) {
-  const { doc } = editorHost;
-  const surfaceModel = doc.getBlockByFlavour('affine:surface')[0];
-  assertExists(surfaceModel);
-
-  const surfaceId = surfaceModel.id;
-  const surfaceElement = editorHost.querySelector(
-    `affine-surface[data-block-id="${surfaceId}"]`
-  ) as SurfaceBlockComponent;
-  assertExists(surfaceElement);
-
-  return surfaceElement;
-}
 
 const OTHER_CSS_VARIABLES = StyleVariables.filter(
   variable =>
@@ -168,14 +149,6 @@ function getDarkModeConfig(): boolean {
 
 @customElement('debug-menu')
 export class DebugMenu extends ShadowlessElement {
-  private _darkModeChange = (e: MediaQueryListEvent) => {
-    this._setThemeMode(!!e.matches);
-  };
-
-  private _showStyleDebugMenu = false;
-
-  private _styleMenu!: Pane;
-
   static override styles = css`
     :root {
       --sl-font-size-medium: var(--affine-font-xs);
@@ -186,6 +159,30 @@ export class DebugMenu extends ShadowlessElement {
       z-index: 1001 !important;
     }
   `;
+
+  private _darkModeChange = (e: MediaQueryListEvent) => {
+    this._setThemeMode(!!e.matches);
+  };
+
+  private _showStyleDebugMenu = false;
+
+  private _styleMenu!: Pane;
+
+  get doc() {
+    return this.editor.doc;
+  }
+
+  get mode() {
+    return this.editor.mode;
+  }
+
+  set mode(value: DocMode) {
+    this.editor.mode = value;
+  }
+
+  get rootService() {
+    return this.editor.std?.getService('affine:page');
+  }
 
   private _addNote() {
     const rootModel = this.doc.root;
@@ -219,11 +216,11 @@ export class DebugMenu extends ShadowlessElement {
   }
 
   private _exportPdf() {
-    this.rootService?.exportManager.exportPdf().catch(console.error);
+    this.editor.std.get(ExportManager).exportPdf().catch(console.error);
   }
 
   private _exportPng() {
-    this.rootService?.exportManager.exportPng().catch(console.error);
+    this.editor.std.get(ExportManager).exportPng().catch(console.error);
   }
 
   private async _exportSnapshot() {
@@ -238,6 +235,23 @@ export class DebugMenu extends ShadowlessElement {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  private async _importMarkdown() {
+    const file = await openFileOrFiles({
+      acceptType: 'Markdown',
+      multiple: false,
+    });
+    if (!file) return;
+    const job = new Job({
+      collection: this.collection,
+      middlewares: [defaultImageProxyMiddleware],
+    });
+    const markdownAdapter = new MarkdownAdapter(job);
+    await markdownAdapter.toDoc({
+      file: await file.text(),
+      assets: job.assetsManager,
+    });
   }
 
   private async _importNotionHTML() {
@@ -321,8 +335,7 @@ export class DebugMenu extends ShadowlessElement {
   private _present() {
     if (!this.editor.std || !this.editor.host) return;
     const rootService = this.editor.std.getService('affine:page');
-    const mode = this.editor.std.get(DocModeProvider).getMode();
-    if (mode !== 'edgeless') {
+    if (!(rootService instanceof EdgelessRootService)) {
       toast(
         this.editor.host,
         'The presentation mode is only available on edgeless mode.',
@@ -375,15 +388,16 @@ export class DebugMenu extends ShadowlessElement {
 
   private _switchEditorMode() {
     if (!this.editor.host) return;
-    this.mode = this.editor.host.std.get(DocModeProvider).toggleMode();
+    const newMode = this.mode === 'page' ? 'edgeless' : 'page';
+    const docModeService = this.editor.host.std.get(DocModeProvider);
+    if (docModeService) {
+      docModeService.setPrimaryMode(newMode, this.editor.doc.id);
+    }
+    this.mode = newMode;
   }
 
   private _switchOffsetMode() {
     this._hasOffset = !this._hasOffset;
-  }
-
-  private _toggleChatPanel() {
-    this.chatPanel.toggleDisplay();
   }
 
   private _toggleCommentPanel() {
@@ -505,9 +519,9 @@ export class DebugMenu extends ShadowlessElement {
       this._canRedo = this.doc.canRedo;
     });
 
-    this.editor.slots.editorModeSwitched.on(() => {
+    this.editor.std.get(DocModeProvider).onPrimaryModeChange(() => {
       this.requestUpdate();
-    });
+    }, this.editor.doc.id);
   }
 
   override render() {
@@ -609,6 +623,9 @@ export class DebugMenu extends ShadowlessElement {
               <sl-menu-item @click="${this._importNotionHTML}">
                 Import Notion HTML
               </sl-menu-item>
+              <sl-menu-item @click="${this._importMarkdown}">
+                Import Markdown
+              </sl-menu-item>
               <sl-menu-item @click="${this._toggleStyleDebugMenu}">
                 Toggle CSS Debug Menu
               </sl-menu-item>
@@ -629,9 +646,6 @@ export class DebugMenu extends ShadowlessElement {
               </sl-menu-item>
               <sl-menu-item @click="${this._toggleFramePanel}">
                 Toggle Frame Panel
-              </sl-menu-item>
-              <sl-menu-item @click="${this._toggleChatPanel}">
-                Toggle Chat Panel
               </sl-menu-item>
               <sl-menu-item @click="${this._toggleCommentPanel}">
                 Toggle Comment Panel
@@ -712,22 +726,6 @@ export class DebugMenu extends ShadowlessElement {
     super.update(changedProperties);
   }
 
-  get doc() {
-    return this.editor.doc;
-  }
-
-  get mode() {
-    return this.editor.mode;
-  }
-
-  set mode(value: DocMode) {
-    this.editor.mode = value;
-  }
-
-  get rootService() {
-    return this.editor.std?.getService('affine:page');
-  }
-
   @state()
   private accessor _canRedo = false;
 
@@ -742,9 +740,6 @@ export class DebugMenu extends ShadowlessElement {
 
   @query('#block-type-dropdown')
   accessor blockTypeDropdown!: SlDropdown;
-
-  @property({ attribute: false })
-  accessor chatPanel!: CustomChatPanel;
 
   @property({ attribute: false })
   accessor collection!: DocCollection;

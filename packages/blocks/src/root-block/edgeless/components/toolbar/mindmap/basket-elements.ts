@@ -1,20 +1,19 @@
 import type { TemplateResult } from 'lit';
 
-import { Bound } from '@blocksuite/global/utils';
-import { assertInstanceOf } from '@blocksuite/global/utils';
+import { CanvasElementType } from '@blocksuite/affine-block-surface';
+import {
+  type MindmapElementModel,
+  type MindmapStyle,
+  type ShapeElementModel,
+  TextElementModel,
+} from '@blocksuite/affine-model';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
+import { assertInstanceOf, Bound } from '@blocksuite/global/utils';
 import { DocCollection } from '@blocksuite/store';
 
-import type { MindmapStyle } from '../../../../../surface-block/index.js';
 import type { EdgelessRootBlockComponent } from '../../../edgeless-root-block.js';
 import type { EdgelessRootService } from '../../../edgeless-root-service.js';
 
-import { LayoutType } from '../../../../../surface-block/element-model/utils/mindmap/layout.js';
-import {
-  CanvasElementType,
-  type MindmapElementModel,
-  type ShapeElementModel,
-  TextElementModel,
-} from '../../../../../surface-block/index.js';
 import { mountTextElementEditor } from '../../../utils/text.js';
 
 export type ConfigProperty = 'x' | 'y' | 'r' | 's' | 'z' | 'o';
@@ -56,13 +55,15 @@ export const getMindmapRender =
       style: mindmapStyle,
     }) as string;
 
-    edgelessService.telemetryService?.track('CanvasElementAdded', {
-      control: 'toolbar:dnd', // for now we use toolbar:dnd for all mindmap creation here
-      page: 'whiteboard editor',
-      module: 'toolbar',
-      segment: 'toolbar',
-      type: 'mindmap',
-    });
+    edgelessService.std
+      .getOptional(TelemetryProvider)
+      ?.track('CanvasElementAdded', {
+        control: 'toolbar:dnd', // for now we use toolbar:dnd for all mindmap creation here
+        page: 'whiteboard editor',
+        module: 'toolbar',
+        segment: 'toolbar',
+        type: 'mindmap',
+      });
 
     const mindmap = edgelessService.getElementById(
       mindmapId
@@ -93,16 +94,10 @@ export const getMindmapRender =
     for (let i = 0; i < 3; i++) {
       const nodeX = x + rootW + 300;
       const nodeY = centerVertical - nodeH / 2 + (i - 1) * 50;
-      createNode(
-        root.id,
-        undefined,
-        undefined,
-        {
-          text: 'Text',
-          xywh: `[${nodeX},${nodeY},${nodeW},${nodeH}]`,
-        },
-        LayoutType.RIGHT
-      );
+      createNode(root.id, undefined, undefined, {
+        text: 'Text',
+        xywh: `[${nodeX},${nodeY},${nodeW},${nodeH}]`,
+      });
     }
 
     return mindmapId;
@@ -136,7 +131,7 @@ export const textRender: DraggableTool['render'] = (
     mountTextElementEditor(textElement, edgeless);
   }
 
-  service.telemetryService?.track('CanvasElementAdded', {
+  service.std.getOptional(TelemetryProvider)?.track('CanvasElementAdded', {
     control: 'toolbar:dnd',
     page: 'whiteboard editor',
     module: 'toolbar',

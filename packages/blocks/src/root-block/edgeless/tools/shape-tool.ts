@@ -1,21 +1,25 @@
-import type { ShapeType } from '@blocksuite/affine-model';
+import type { ShapeElementModel, ShapeName } from '@blocksuite/affine-model';
 import type { PointerEventState } from '@blocksuite/block-std';
 import type { IVec } from '@blocksuite/global/utils';
 
+import { CanvasElementType } from '@blocksuite/affine-block-surface';
 import {
   DEFAULT_SHAPE_FILL_COLOR,
   DEFAULT_SHAPE_STROKE_COLOR,
+  getShapeType,
+  ShapeType,
 } from '@blocksuite/affine-model';
+import {
+  EditPropsStore,
+  TelemetryProvider,
+} from '@blocksuite/affine-shared/services';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { Bound } from '@blocksuite/global/utils';
-import { noop } from '@blocksuite/global/utils';
+import { Bound, noop } from '@blocksuite/global/utils';
 
-import type { ShapeElementModel } from '../../../surface-block/index.js';
 import type { SelectionArea } from '../services/tools-manager.js';
 import type { EdgelessTool } from '../types.js';
 
 import { hasClassNameInList } from '../../../_common/utils/index.js';
-import { CanvasElementType } from '../../../surface-block/index.js';
 import {
   EXCLUDING_MOUSE_OUT_CLASS_LIST,
   SHAPE_OVERLAY_HEIGHT,
@@ -27,13 +31,11 @@ import { EdgelessToolController } from './edgeless-tool.js';
 
 export type ShapeTool = {
   type: 'shape';
-  shapeType: ShapeType | 'roundedRect';
+  shapeName: ShapeName;
 };
 
 export class ShapeToolController extends EdgelessToolController<ShapeTool> {
   private _disableOverlay = false;
-
-  protected override _draggingArea: SelectionArea | null = null;
 
   private _draggingElement: ShapeElementModel | null = null;
 
@@ -47,10 +49,12 @@ export class ShapeToolController extends EdgelessToolController<ShapeTool> {
   // shape overlay
   private _shapeOverlay: ShapeOverlay | null = null;
 
-  readonly tool = {
+  protected override _draggingArea: SelectionArea | null = null;
+
+  readonly tool: ShapeTool = {
     type: 'shape',
-    shapeType: 'rect',
-  } as ShapeTool;
+    shapeName: ShapeType.Rect,
+  };
 
   private _addNewShape(
     e: PointerEventState,
@@ -58,10 +62,13 @@ export class ShapeToolController extends EdgelessToolController<ShapeTool> {
     height: number
   ): string {
     const { viewport } = this._service;
+    const { shapeName } = this.tool;
     const attributes =
-      this._edgeless.service.editPropsStore.getLastProps('shape');
-    const { shapeType } = this.tool;
-    if (shapeType === 'rect' && attributes.radius > 0) {
+      this._edgeless.std.get(EditPropsStore).lastProps$.value[
+        `shape:${shapeName}`
+      ];
+
+    if (shapeName === 'roundedRect') {
       width += 40;
     }
     // create a shape block when drag start
@@ -69,21 +76,23 @@ export class ShapeToolController extends EdgelessToolController<ShapeTool> {
     const bound = new Bound(modelX, modelY, width, height);
 
     const id = this._service.addElement(CanvasElementType.SHAPE, {
-      shapeType: shapeType,
+      shapeType: getShapeType(shapeName),
       xywh: bound.serialize(),
       radius: attributes.radius,
     });
 
-    this._service.telemetryService?.track('CanvasElementAdded', {
-      control: 'canvas:draw',
-      page: 'whiteboard editor',
-      module: 'toolbar',
-      segment: 'toolbar',
-      type: CanvasElementType.SHAPE,
-      other: {
-        shapeType,
-      },
-    });
+    this._service.std
+      .getOptional(TelemetryProvider)
+      ?.track('CanvasElementAdded', {
+        control: 'canvas:draw',
+        page: 'whiteboard editor',
+        module: 'toolbar',
+        segment: 'toolbar',
+        type: CanvasElementType.SHAPE,
+        other: {
+          shapeName,
+        },
+      });
 
     return id;
   }
@@ -180,8 +189,11 @@ export class ShapeToolController extends EdgelessToolController<ShapeTool> {
     this.clearOverlay();
     if (this._disableOverlay) return;
     const options = SHAPE_OVERLAY_OPTIONS;
+    const { shapeName } = this.tool;
     const attributes =
-      this._edgeless.service.editPropsStore.getLastProps('shape');
+      this._edgeless.std.get(EditPropsStore).lastProps$.value[
+        `shape:${shapeName}`
+      ];
     options.stroke = ThemeObserver.getColorValue(
       attributes.strokeColor,
       DEFAULT_SHAPE_STROKE_COLOR,
@@ -204,11 +216,7 @@ export class ShapeToolController extends EdgelessToolController<ShapeTool> {
       default:
         options.strokeLineDash = [];
     }
-    let shapeType: string = attributes.shapeType;
-    if (attributes.radius > 0 && shapeType === 'rect') {
-      shapeType = 'roundedRect';
-    }
-    this._shapeOverlay = new ShapeOverlay(this._edgeless, shapeType, options, {
+    this._shapeOverlay = new ShapeOverlay(this._edgeless, shapeName, options, {
       shapeStyle: attributes.shapeStyle,
       fillColor: attributes.fillColor,
       strokeColor: attributes.strokeColor,

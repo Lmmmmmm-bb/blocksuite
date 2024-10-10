@@ -6,20 +6,19 @@ import {
   NewIcon,
   NotionIcon,
 } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { sha } from '@blocksuite/global/utils';
+import { sha, WithDisposable } from '@blocksuite/global/utils';
 import {
   type DocCollection,
-  type JobMiddleware,
   extMimeMap,
+  type JobMiddleware,
 } from '@blocksuite/store';
 import { Job } from '@blocksuite/store';
-import { LitElement, type PropertyValues, html } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { html, LitElement, type PropertyValues } from 'lit';
+import { query, state } from 'lit/decorators.js';
 
+import { HtmlAdapter } from '../../../../_common/adapters/html.js';
 import { MarkdownAdapter } from '../../../../_common/adapters/markdown.js';
 import { NotionHtmlAdapter } from '../../../../_common/adapters/notion-html.js';
-import '../../../../_common/components/loader.js';
 import { defaultImageProxyMiddleware } from '../../../../_common/transformers/middlewares.js';
 import { Unzip } from '../../../../_common/transformers/utils.js';
 import { openFileOrFiles } from '../../../../_common/utils/index.js';
@@ -78,7 +77,7 @@ export async function importHtml(collection: DocCollection, text: string) {
     collection,
     middlewares: [defaultImageProxyMiddleware],
   });
-  const htmlAdapter = new NotionHtmlAdapter(job);
+  const htmlAdapter = new HtmlAdapter(job);
   const snapshot = await htmlAdapter.toDocSnapshot({
     file: text,
     assets: job.assetsManager,
@@ -204,7 +203,6 @@ export async function importNotion(collection: DocCollection, file: File) {
   return { entryId, pageIds, isWorkspaceFile, hasMarkdown };
 }
 
-@customElement('import-doc')
 export class ImportDoc extends WithDisposable(LitElement) {
   static override styles = styles;
 

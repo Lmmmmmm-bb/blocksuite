@@ -1,10 +1,16 @@
 import { SmallScissorsIcon } from '@blocksuite/affine-components/icons';
-import { WithDisposable } from '@blocksuite/block-std';
-import { deserializeXYWH, serializeXYWH } from '@blocksuite/global/utils';
-import { Point } from '@blocksuite/global/utils';
-import { DisposableGroup } from '@blocksuite/global/utils';
-import { LitElement, type PropertyValues, css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { EDGELESS_BLOCK_CHILD_PADDING } from '@blocksuite/affine-shared/consts';
+import { TelemetryProvider } from '@blocksuite/affine-shared/services';
+import { getRectByBlockComponent } from '@blocksuite/affine-shared/utils';
+import {
+  deserializeXYWH,
+  DisposableGroup,
+  Point,
+  serializeXYWH,
+  WithDisposable,
+} from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
+import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
@@ -14,10 +20,6 @@ import type {
   NoteBlockModel,
 } from '../../../../index.js';
 
-import {
-  buildPath,
-  getRectByBlockComponent,
-} from '../../../../_common/utils/index.js';
 import { DEFAULT_NOTE_HEIGHT } from '../../utils/consts.js';
 import { isNoteBlock } from '../../utils/query.js';
 
@@ -94,8 +96,9 @@ const styles = css`
     }
   }
 `;
-@customElement('note-slicer')
 export class NoteSlicer extends WithDisposable(LitElement) {
+  static override styles = styles;
+
   private _divingLinePositions: Point[] = [];
 
   private _hidden = false;
@@ -104,23 +107,40 @@ export class NoteSlicer extends WithDisposable(LitElement) {
 
   private _noteDisposables: DisposableGroup | null = null;
 
-  static override styles = styles;
-
   get _editorHost() {
     return this.edgeless.host;
   }
 
   get _noteBlock() {
     if (!this._editorHost) return null;
-    const noteBlock = this._editorHost.view.viewFromPath(
-      'block',
-      buildPath(this._anchorNote)
+    const noteBlock = this._editorHost.view.getBlock(
+      this._anchorNote?.id ?? ''
     );
     return noteBlock ? (noteBlock as NoteBlockComponent) : null;
   }
 
   get _selection() {
     return this.edgeless.service.selection;
+  }
+
+  get _viewportOffset() {
+    const { viewport } = this.edgeless;
+    return {
+      left: viewport.left ?? 0,
+      top: viewport.top ?? 0,
+    };
+  }
+
+  get _zoom() {
+    if (!this.edgeless.service?.viewport) {
+      console.error('Viewport is not found, something went wrong.');
+      return 1;
+    }
+    return this.edgeless.service.viewport.zoom;
+  }
+
+  get selectedRectEle() {
+    return this.edgeless.querySelector('edgeless-selected-rect');
   }
 
   private _sliceNote() {
@@ -170,7 +190,7 @@ export class NoteSlicer extends WithDisposable(LitElement) {
       editing: false,
     });
 
-    this.edgeless.service.telemetryService?.track('SplitNote', {
+    this.edgeless.std.getOptional(TelemetryProvider)?.track('SplitNote', {
       control: 'NoteSlicer',
     });
   }
@@ -209,7 +229,7 @@ export class NoteSlicer extends WithDisposable(LitElement) {
     for (let i = 0; i < this._anchorNote.children.length - 1; i++) {
       const child = this._anchorNote.children[i];
       const rect = this.edgeless.host.view
-        .viewFromPath('block', buildPath(child))
+        .getBlock(child.id)
         ?.getBoundingClientRect();
 
       if (rect && rect.bottom > noteTop && rect.bottom < noteBottom) {
@@ -240,22 +260,6 @@ export class NoteSlicer extends WithDisposable(LitElement) {
     } else {
       this._anchorNote = null;
     }
-  }
-
-  get _viewportOffset() {
-    const { viewport } = this.edgeless;
-    return {
-      left: viewport.left ?? 0,
-      top: viewport.top ?? 0,
-    };
-  }
-
-  get _zoom() {
-    if (!this.edgeless.service?.viewport) {
-      console.error('Viewport is not found, something went wrong.');
-      return 1;
-    }
-    return this.edgeless.service.viewport.zoom;
   }
 
   override connectedCallback(): void {
@@ -313,12 +317,11 @@ export class NoteSlicer extends WithDisposable(LitElement) {
             const event = ctx.get('pointerState');
             const { raw } = event;
             const target = raw.target as HTMLElement;
-            if (!target) return false;
+            if (!target) return;
+
             if (target.closest('note-slicer')) {
               this._sliceNote();
-              return true;
             }
-            return false;
           })
         );
       }
@@ -358,7 +361,7 @@ export class NoteSlicer extends WithDisposable(LitElement) {
     if (!noteBlock || !this._divingLinePositions.length) return nothing;
 
     const rect = getRectByBlockComponent(noteBlock);
-    const width = rect.width;
+    const width = rect.width - 2 * EDGELESS_BLOCK_CHILD_PADDING;
     const buttonPosition = this._divingLinePositions[this._activeSlicerIndex];
 
     return html`<div class="note-slicer-container">
@@ -409,10 +412,6 @@ export class NoteSlicer extends WithDisposable(LitElement) {
         );
       }
     }
-  }
-
-  get selectedRectEle() {
-    return this.edgeless.querySelector('edgeless-selected-rect');
   }
 
   @state()

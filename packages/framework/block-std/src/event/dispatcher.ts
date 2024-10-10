@@ -1,9 +1,9 @@
 import { BlockSuiteError, ErrorCode } from '@blocksuite/global/exceptions';
 import { DisposableGroup } from '@blocksuite/global/utils';
 
-import type { BlockComponent } from '../view/index.js';
-
 import { LifeCycleWatcher } from '../extension/index.js';
+import { KeymapIdentifier } from '../identifier.js';
+import { type BlockComponent, EditorHost } from '../view/index.js';
 import {
   type UIEventHandler,
   UIEventState,
@@ -70,9 +70,11 @@ export type EventHandlerRunner = {
 };
 
 export class UIEventDispatcher extends LifeCycleWatcher {
-  private _active = false;
-
   private static _activeDispatcher: UIEventDispatcher | null = null;
+
+  static override readonly key = 'UIEventDispatcher';
+
+  private _active = false;
 
   private _clipboardControl: ClipboardControl;
 
@@ -86,12 +88,22 @@ export class UIEventDispatcher extends LifeCycleWatcher {
 
   private _rangeControl: RangeControl;
 
-  static override readonly key = 'UIEventDispatcher';
-
   bindHotkey = (...args: Parameters<KeyboardControl['bindHotkey']>) =>
     this._keyboardControl.bindHotkey(...args);
 
   disposables = new DisposableGroup();
+
+  private get _currentSelections() {
+    return this.std.selection.value;
+  }
+
+  get active() {
+    return this._active;
+  }
+
+  get host() {
+    return this.std.host;
+  }
 
   constructor(std: BlockSuite.Std) {
     super(std);
@@ -203,10 +215,6 @@ export class UIEventDispatcher extends LifeCycleWatcher {
     return this.buildEventScope(name, [blockId]);
   }
 
-  private get _currentSelections() {
-    return this.std.selection.value;
-  }
-
   private _getDeepActiveElement(): Element | null {
     let active = document.activeElement;
     while (active && active.shadowRoot && active.shadowRoot.activeElement) {
@@ -258,13 +266,12 @@ export class UIEventDispatcher extends LifeCycleWatcher {
     return (
       element instanceof HTMLInputElement ||
       element instanceof HTMLTextAreaElement ||
+      (element instanceof EditorHost && !element.doc.readonly) ||
       (element as HTMLElement).isContentEditable
     );
   }
 
   private _setActive(active: boolean) {
-    if (this.host.doc.readonly) return;
-
     if (active) {
       if (UIEventDispatcher._activeDispatcher !== this) {
         if (UIEventDispatcher._activeDispatcher) {
@@ -345,6 +352,13 @@ export class UIEventDispatcher extends LifeCycleWatcher {
       this.disposables = new DisposableGroup();
     }
     this._bindEvents();
+
+    const std = this.std;
+    this.std.provider
+      .getAll(KeymapIdentifier)
+      .forEach(({ getter, options }) => {
+        this.bindHotkey(getter(std), options);
+      });
   }
 
   run(
@@ -373,13 +387,5 @@ export class UIEventDispatcher extends LifeCycleWatcher {
 
   override unmounted() {
     this.disposables.dispose();
-  }
-
-  get active() {
-    return this._active;
-  }
-
-  get host() {
-    return this.std.host;
   }
 }

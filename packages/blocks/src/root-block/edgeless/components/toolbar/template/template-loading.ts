@@ -1,7 +1,5 @@
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
 
-@customElement('affine-template-loading')
 export class AffineTemplateLoading extends LitElement {
   static override styles = css`
     @keyframes affine-template-block-rotate {

@@ -1,25 +1,18 @@
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-
-import type {
-  BlockComponent,
-  EditorHost,
-} from '@block-std/view/element/index.js';
 import type {
   AffineInlineEditor,
   NoteBlockModel,
   RichText,
   RootBlockModel,
 } from '@blocks/index.js';
+import type { BlockComponent, EditorHost } from '@blocksuite/block-std';
 import type { InlineRootElement } from '@inline/inline-editor.js';
-import type { Locator } from '@playwright/test';
 import type { BlockModel } from '@store/index.js';
 import type { JSXElement } from '@store/utils/jsx.js';
 
-import { BLOCK_ID_ATTR } from '@blocks/_common/consts.js';
 import { NOTE_WIDTH } from '@blocksuite/affine-model';
-import { assertExists } from '@global/utils/index.js';
-import { type Page, expect } from '@playwright/test';
+import { BLOCK_ID_ATTR } from '@blocksuite/block-std';
+import { assertExists } from '@blocksuite/global/utils';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { COLLECTION_VERSION, PAGE_VERSION } from '@store/consts.js';
 import {
   format as prettyFormat,
@@ -40,11 +33,11 @@ import {
   toIdCountMap,
 } from './actions/edgeless.js';
 import {
-  SHORT_KEY,
   pressArrowLeft,
   pressArrowRight,
   pressBackspace,
   redoByKeyboard,
+  SHORT_KEY,
   type,
   undoByKeyboard,
 } from './actions/keyboard.js';
@@ -87,6 +80,7 @@ export const defaultStore = {
       'affine:embed-linked-doc': 1,
       'affine:embed-synced-doc': 1,
       'affine:image': 1,
+      'affine:latex': 1,
       'affine:frame': 1,
       'affine:code': 1,
       'affine:surface': 5,
@@ -114,16 +108,16 @@ export const defaultStore = {
           'sys:children': ['2'],
           'sys:version': 1,
           'prop:xywh': `[0,0,${NOTE_WIDTH},95]`,
-          'prop:background': '--affine-note-background-blue',
+          'prop:background': '--affine-note-background-white',
           'prop:index': 'a0',
           'prop:hidden': false,
           'prop:displayMode': 'both',
           'prop:edgeless': {
             style: {
-              borderRadius: 0,
+              borderRadius: 8,
               borderSize: 4,
               borderStyle: 'none',
-              shadowType: '--affine-note-shadow-sticker',
+              shadowType: '--affine-note-shadow-box',
             },
           },
         },
@@ -1189,7 +1183,6 @@ export async function assertCanvasElementsCount(page: Page, expected: number) {
   const number = await getCanvasElementsCount(page);
   expect(number).toEqual(expected);
 }
-
 export function assertBound(received: Bound, expected: Bound) {
   expect(received[0]).toBeCloseTo(expected[0], 0);
   expect(received[1]).toBeCloseTo(expected[1], 0);

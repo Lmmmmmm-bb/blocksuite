@@ -1,6 +1,8 @@
 import type {
   AttachmentBlockModel,
   BookmarkBlockModel,
+  BrushElementModel,
+  ConnectorElementModel,
   EdgelessTextBlockModel,
   EmbedFigmaModel,
   EmbedGithubModel,
@@ -11,40 +13,36 @@ import type {
   EmbedYoutubeModel,
   FrameBlockModel,
   ImageBlockModel,
+  MindmapElementModel,
   NoteBlockModel,
   RootBlockModel,
+  TextElementModel,
 } from '@blocksuite/affine-model';
 
+import { CommonUtils } from '@blocksuite/affine-block-surface';
 import { ConnectorCWithArrowIcon } from '@blocksuite/affine-components/icons';
 import {
-  type MenuItemGroup,
   cloneGroups,
+  type MenuItemGroup,
   renderToolbarSeparator,
 } from '@blocksuite/affine-components/toolbar';
+import {
+  ConnectorMode,
+  GroupElementModel,
+  ShapeElementModel,
+} from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
 import { requestConnectedFrame } from '@blocksuite/affine-shared/utils';
 import { WidgetComponent } from '@blocksuite/block-std';
 import { atLeastNMatches, groupBy, pickValues } from '@blocksuite/global/utils';
-import { type TemplateResult, css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { css, html, nothing, type TemplateResult } from 'lit';
+import { property, state } from 'lit/decorators.js';
 import { join } from 'lit/directives/join.js';
 
-import type { MindmapElementModel } from '../../../surface-block/element-model/mindmap.js';
 import type { EdgelessRootBlockComponent } from '../../edgeless/edgeless-root-block.js';
 import type { ConnectorToolController } from '../../edgeless/tools/connector-tool.js';
 import type { ElementToolbarMoreMenuContext } from './more-menu/context.js';
 
-import {
-  ConnectorMode,
-  GroupElementModel,
-} from '../../../surface-block/index.js';
-import {
-  type BrushElementModel,
-  type ConnectorElementModel,
-  ShapeElementModel,
-  type TextElementModel,
-  clamp,
-} from '../../../surface-block/index.js';
 import { getMoreMenuConfig } from '../../configs/toolbar.js';
 import { edgelessElementsBound } from '../../edgeless/utils/bound-utils.js';
 import {
@@ -71,7 +69,6 @@ import { renderMindmapButton } from './change-mindmap-button.js';
 import { renderNoteButton } from './change-note-button.js';
 import { renderChangeShapeButton } from './change-shape-button.js';
 import { renderChangeTextButton } from './change-text-button.js';
-import './more-menu/button.js';
 import { BUILT_IN_GROUPS } from './more-menu/config.js';
 import { renderReleaseFromGroupButton } from './release-from-group-button.js';
 
@@ -105,11 +102,21 @@ type CustomEntry = {
 export const EDGELESS_ELEMENT_TOOLBAR_WIDGET =
   'edgeless-element-toolbar-widget';
 
-@customElement(EDGELESS_ELEMENT_TOOLBAR_WIDGET)
 export class EdgelessElementToolbarWidget extends WidgetComponent<
   RootBlockModel,
   EdgelessRootBlockComponent
 > {
+  static override styles = css`
+    :host {
+      position: absolute;
+      z-index: 3;
+      transform: translateZ(0);
+      will-change: transform;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  `;
+
   private _quickConnect = ({ x, y }: MouseEvent) => {
     const element = this.selection.selectedElements[0];
     const point = this.edgeless.service.viewport.toViewCoordFromClientCoord([
@@ -137,23 +144,28 @@ export class EdgelessElementToolbarWidget extends WidgetComponent<
     }
   };
 
-  static override styles = css`
-    :host {
-      position: absolute;
-      z-index: 3;
-      transform: translateZ(0);
-      will-change: transform;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-  `;
-
   /*
    * Caches the more menu items.
    * Currently only supports configuring more menu.
    */
   moreGroups: MenuItemGroup<ElementToolbarMoreMenuContext>[] =
     cloneGroups(BUILT_IN_GROUPS);
+
+  get edgeless() {
+    return this.block as EdgelessRootBlockComponent;
+  }
+
+  get selection() {
+    return this.edgeless.service.selection;
+  }
+
+  get slots() {
+    return this.edgeless.slots;
+  }
+
+  get surface() {
+    return this.edgeless.surface;
+  }
 
   private _groupSelected(): CategorizedElements {
     const result = groupBy(this.selection.selectedElements, model => {
@@ -226,8 +238,8 @@ export class EdgelessElementToolbarWidget extends WidgetComponent<
     requestConnectedFrame(() => {
       const rect = this.getBoundingClientRect();
 
-      left = clamp(x, 10, width - rect.width - 10);
-      top = clamp(top, 10, height - rect.height - 150);
+      left = CommonUtils.clamp(x, 10, width - rect.width - 10);
+      top = CommonUtils.clamp(top, 10, height - rect.height - 150);
 
       this.style.transform = `translate3d(${left}px, ${top}px, 0)`;
     }, this);
@@ -268,9 +280,9 @@ export class EdgelessElementToolbarWidget extends WidgetComponent<
         ) {
           this.toolbarVisible = false;
         } else {
-          this.toolbarVisible = true;
           this.selectedIds = this.selection.selectedIds;
           this._recalculatePosition();
+          this.toolbarVisible = true;
         }
       })
     );
@@ -416,22 +428,6 @@ export class EdgelessElementToolbarWidget extends WidgetComponent<
         )}
       </editor-toolbar>
     `;
-  }
-
-  get edgeless() {
-    return this.block as EdgelessRootBlockComponent;
-  }
-
-  get selection() {
-    return this.edgeless.service.selection;
-  }
-
-  get slots() {
-    return this.edgeless.slots;
-  }
-
-  get surface() {
-    return this.edgeless.surface;
   }
 
   @state()

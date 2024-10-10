@@ -1,28 +1,25 @@
-import type { DatabaseBlockModel } from '@blocksuite/affine-model';
 import type { BlockModel, Doc } from '@blocksuite/store';
 
 import {
   type Cell,
   type Column,
+  type DatabaseBlockModel,
   DatabaseBlockSchema,
   NoteBlockSchema,
   ParagraphBlockSchema,
   RootBlockSchema,
 } from '@blocksuite/affine-model';
+import { propertyModelPresets } from '@blocksuite/data-view/property-pure-presets';
 import { DocCollection, IdGeneratorType, Schema } from '@blocksuite/store';
 import { beforeEach, describe, expect, test } from 'vitest';
 
-import { selectColumnModelConfig } from '../../database-block/data-view/column/presets/select/define.js';
+import { databaseBlockColumns } from '../../database-block/index.js';
 import {
-  columnPresets,
-  richTextColumnConfig,
-} from '../../database-block/index.js';
-import {
-  addColumn,
-  copyCellsByColumn,
+  addProperty,
+  copyCellsByProperty,
   deleteColumn,
   getCell,
-  getColumn,
+  getProperty,
   updateCell,
 } from '../../database-block/utils.js';
 
@@ -90,17 +87,23 @@ describe('DatabaseManager', () => {
     ) as DatabaseBlockModel;
     db = databaseModel;
 
-    col1 = addColumn(
+    col1 = addProperty(
       db,
       'end',
-      columnPresets.numberColumnConfig.model.create('Number')
+      databaseBlockColumns.numberColumnConfig.create('Number')
     );
-    col2 = addColumn(
+    col2 = addProperty(
       db,
       'end',
-      selectColumnModelConfig.create('Single Select', { options: selection })
+      propertyModelPresets.selectPropertyModelConfig.create('Single Select', {
+        options: selection,
+      })
     );
-    col3 = addColumn(db, 'end', richTextColumnConfig.model.create('Rich Text'));
+    col3 = addProperty(
+      db,
+      'end',
+      databaseBlockColumns.richTextColumnConfig.create('Rich Text')
+    );
 
     doc.updateBlock(databaseModel, {
       columns: [col1, col2, col3],
@@ -133,19 +136,20 @@ describe('DatabaseManager', () => {
 
   test('getColumn', () => {
     const column = {
-      ...columnPresets.numberColumnConfig.model.create('testColumnId'),
+      ...databaseBlockColumns.numberColumnConfig.create('testColumnId'),
       id: 'testColumnId',
     };
-    addColumn(db, 'end', column);
+    addProperty(db, 'end', column);
 
-    const result = getColumn(db, column.id);
+    const result = getProperty(db, column.id);
     expect(result).toEqual(column);
   });
 
   test('addColumn', () => {
-    const column = columnPresets.numberColumnConfig.model.create('Test Column');
-    const id = addColumn(db, 'end', column);
-    const result = getColumn(db, id);
+    const column =
+      databaseBlockColumns.numberColumnConfig.create('Test Column');
+    const id = addProperty(db, 'end', column);
+    const result = getProperty(db, id);
 
     expect(result).toMatchObject(column);
     expect(result).toHaveProperty('id');
@@ -153,14 +157,14 @@ describe('DatabaseManager', () => {
 
   test('deleteColumn', () => {
     const column = {
-      ...columnPresets.numberColumnConfig.model.create('Test Column'),
+      ...databaseBlockColumns.numberColumnConfig.create('Test Column'),
       id: 'testColumnId',
     };
-    addColumn(db, 'end', column);
-    expect(getColumn(db, column.id)).toEqual(column);
+    addProperty(db, 'end', column);
+    expect(getProperty(db, column.id)).toEqual(column);
 
     deleteColumn(db, column.id);
-    expect(getColumn(db, column.id)).toBeUndefined();
+    expect(getProperty(db, column.id)).toBeUndefined();
   });
 
   test('getCell', () => {
@@ -172,7 +176,7 @@ describe('DatabaseManager', () => {
       noteBlockId
     );
     const column = {
-      ...columnPresets.numberColumnConfig.model.create('Test Column'),
+      ...databaseBlockColumns.numberColumnConfig.create('Test Column'),
       id: 'testColumnId',
     };
     const cell: Cell = {
@@ -180,14 +184,13 @@ describe('DatabaseManager', () => {
       value: 42,
     };
 
-    addColumn(db, 'end', column);
+    addProperty(db, 'end', column);
     updateCell(db, modelId, cell);
 
     const model = doc.getBlockById(modelId);
 
     expect(model).not.toBeNull();
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const result = getCell(db, model!.id, column.id);
     expect(result).toEqual(cell);
   });
@@ -214,13 +217,15 @@ describe('DatabaseManager', () => {
   });
 
   test('copyCellsByColumn', () => {
-    const newColId = addColumn(
+    const newColId = addProperty(
       db,
       'end',
-      selectColumnModelConfig.create('Copied Select', { options: selection })
+      propertyModelPresets.selectPropertyModelConfig.create('Copied Select', {
+        options: selection,
+      })
     );
 
-    copyCellsByColumn(db, col2, newColId);
+    copyCellsByProperty(db, col2, newColId);
 
     const cell = getCell(db, p2, newColId);
     expect(cell).toEqual({

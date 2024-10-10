@@ -1,23 +1,12 @@
-import { WithDisposable } from '@blocksuite/block-std';
 import { DualLinkIcon16, scrollbarStyle } from '@blocksuite/blocks';
+import { WithDisposable } from '@blocksuite/global/utils';
 import { baseTheme } from '@toeverything/theme';
-import { LitElement, css, html, unsafeCSS } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { css, html, LitElement, unsafeCSS } from 'lit';
+import { state } from 'lit/decorators.js';
 
 import { type BacklinkData, DEFAULT_DOC_NAME } from './utils.js';
 
-@customElement('backlink-button')
 export class BacklinkButton extends WithDisposable(LitElement) {
-  private _backlinks: BacklinkData[];
-
-  // Handle click outside
-  private _onClickAway = (e: Event) => {
-    if (e.target === this) return;
-    if (!this._showPopover) return;
-    this._showPopover = false;
-    document.removeEventListener('mousedown', this._onClickAway);
-  };
-
   static override styles = css`
     :host {
       position: relative;
@@ -89,6 +78,16 @@ export class BacklinkButton extends WithDisposable(LitElement) {
 
     ${scrollbarStyle('.backlink-popover .group')}
   `;
+
+  private _backlinks: BacklinkData[];
+
+  // Handle click outside
+  private _onClickAway = (e: Event) => {
+    if (e.target === this) return;
+    if (!this._showPopover) return;
+    this._showPopover = false;
+    document.removeEventListener('mousedown', this._onClickAway);
+  };
 
   constructor(backlinks: BacklinkData[]) {
     super();

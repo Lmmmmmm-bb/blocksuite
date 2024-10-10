@@ -1,19 +1,9 @@
-import type { EditorHost } from '@blocksuite/block-std';
-import type { Doc } from '@blocksuite/store';
-
-import { ShadowlessElement, WithDisposable } from '@blocksuite/block-std';
-import {
-  type EdgelessRootBlockComponent,
-  type FrameBlockModel,
-  on,
-  once,
-} from '@blocksuite/blocks';
-import { DisposableGroup } from '@blocksuite/global/utils';
-import { type PropertyValues, css, html, nothing } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { ShadowlessElement } from '@blocksuite/block-std';
+import { type FrameBlockModel, on, once } from '@blocksuite/blocks';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, nothing } from 'lit';
+import { property, query } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
-
-import './frame-card-title.js';
 
 export type ReorderEvent = CustomEvent<{
   currentNumber: number;
@@ -113,28 +103,8 @@ const styles = css`
 
 export const AFFINE_FRAME_CARD = 'affine-frame-card';
 
-@customElement(AFFINE_FRAME_CARD)
 export class FrameCard extends WithDisposable(ShadowlessElement) {
-  private _clearFrameDisposables = () => {
-    this._frameDisposables?.dispose();
-    this._frameDisposables = null;
-  };
-
-  private _frameDisposables: DisposableGroup | null = null;
-
-  private _updateElement = () => {
-    this.requestUpdate();
-  };
-
   static override styles = styles;
-
-  private _DraggingCardNumber() {
-    if (this.draggingCardNumber === undefined) return nothing;
-
-    return html`<div class="dragging-card-number">
-      ${this.draggingCardNumber}
-    </div>`;
-  }
 
   private _dispatchDragEvent(e: MouseEvent) {
     e.preventDefault();
@@ -196,19 +166,12 @@ export class FrameCard extends WithDisposable(ShadowlessElement) {
     this.dispatchEvent(event);
   }
 
-  private _setFrameDisposables(frame: FrameBlockModel) {
-    this._clearFrameDisposables();
-    this._frameDisposables = new DisposableGroup();
-    this._frameDisposables.add(frame.propsUpdated.on(this._updateElement));
-  }
+  private _DraggingCardNumber() {
+    if (this.draggingCardNumber === undefined) return nothing;
 
-  override connectedCallback() {
-    super.connectedCallback();
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    this._clearFrameDisposables();
+    return html`<div class="dragging-card-number">
+      ${this.draggingCardNumber}
+    </div>`;
   }
 
   override render() {
@@ -243,21 +206,10 @@ export class FrameCard extends WithDisposable(ShadowlessElement) {
       >
         ${this.status === 'dragging' && stackOrder !== 0
           ? nothing
-          : html`<frame-preview
-              .edgeless=${this.edgeless}
-              .doc=${this.doc}
-              .host=${this.host}
-              .frame=${this.frame}
-            ></frame-preview>`}
+          : html`<frame-preview .frame=${this.frame}></frame-preview>`}
         ${this._DraggingCardNumber()}
       </div>
     </div>`;
-  }
-
-  override updated(_changedProperties: PropertyValues) {
-    if (_changedProperties.has('frame')) {
-      this._setFrameDisposables(this.frame);
-    }
   }
 
   @property({ attribute: false })
@@ -267,22 +219,13 @@ export class FrameCard extends WithDisposable(ShadowlessElement) {
   accessor containerElement!: HTMLElement;
 
   @property({ attribute: false })
-  accessor doc!: Doc;
-
-  @property({ attribute: false })
   accessor draggingCardNumber: number | undefined = undefined;
-
-  @property({ attribute: false })
-  accessor edgeless: EdgelessRootBlockComponent | null = null;
 
   @property({ attribute: false })
   accessor frame!: FrameBlockModel;
 
   @property({ attribute: false })
   accessor frameIndex!: string;
-
-  @property({ attribute: false })
-  accessor host!: EditorHost;
 
   @property({ attribute: false })
   accessor pos!: { x: number; y: number };

@@ -1,24 +1,23 @@
 import type { XYWH } from '@blocksuite/global/utils';
 
 import {
+  type Options,
+  Overlay,
+  type RoughCanvas,
+} from '@blocksuite/affine-block-surface';
+import {
   type Color,
   DEFAULT_NOTE_BACKGROUND_COLOR,
   DEFAULT_SHAPE_FILL_COLOR,
   DEFAULT_SHAPE_STROKE_COLOR,
-  type ShapeStyle,
   shapeMethods,
+  type ShapeStyle,
 } from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { Bound } from '@blocksuite/global/utils';
-import { DisposableGroup, Slot, noop } from '@blocksuite/global/utils';
+import { Bound, DisposableGroup, noop, Slot } from '@blocksuite/global/utils';
 
 import type { EdgelessRootBlockComponent } from '../edgeless-root-block.js';
 
-import {
-  type Options,
-  Overlay,
-  type RoughCanvas,
-} from '../../../surface-block/index.js';
 import {
   NOTE_OVERLAY_CORNER_RADIUS,
   NOTE_OVERLAY_HEIGHT,
@@ -303,24 +302,24 @@ export class ShapeOverlay extends ToolOverlay {
     this.disposables.add(
       this.edgeless.slots.edgelessToolUpdated.on(edgelessTool => {
         if (edgelessTool.type !== 'shape') return;
-        const shapeType = edgelessTool.shapeType;
+        const { shapeName } = edgelessTool;
         const newOptions = {
           ...options,
         };
 
         let { x, y } = this;
-        if (shapeType === 'roundedRect' || shapeType === 'rect') {
+        if (shapeName === 'roundedRect' || shapeName === 'rect') {
           x += SHAPE_OVERLAY_OFFSET_X;
           y += SHAPE_OVERLAY_OFFSET_Y;
         }
         const w =
-          shapeType === 'roundedRect'
+          shapeName === 'roundedRect'
             ? SHAPE_OVERLAY_WIDTH + 40
             : SHAPE_OVERLAY_WIDTH;
         const xywh = [x, y, w, SHAPE_OVERLAY_HEIGHT] as XYWH;
         this.shape = ShapeFactory.createShape(
           xywh,
-          shapeType,
+          shapeName,
           newOptions,
           shapeStyle
         );

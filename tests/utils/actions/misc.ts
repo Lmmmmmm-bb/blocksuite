@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/no-restricted-imports */
-import type { EditorHost } from '@block-std/view/element/lit-host.js';
 import type { DatabaseBlockModel, ListType, RichText } from '@blocks/index.js';
+import type { EditorHost, ExtensionType } from '@blocksuite/block-std';
+import type { BlockSuiteFlags } from '@blocksuite/global/types';
+import type { AffineEditorContainer } from '@blocksuite/presets';
 import type { InlineRange, InlineRootElement } from '@inline/index.js';
 import type { CustomFramePanel } from '@playground/apps/_common/components/custom-frame-panel.js';
 import type { CustomOutlinePanel } from '@playground/apps/_common/components/custom-outline-panel.js';
@@ -8,10 +9,9 @@ import type { CustomOutlineViewer } from '@playground/apps/_common/components/cu
 import type { DebugMenu } from '@playground/apps/_common/components/debug-menu.js';
 import type { DocsPanel } from '@playground/apps/_common/components/docs-panel.js';
 import type { ConsoleMessage, Locator, Page } from '@playwright/test';
-import type { AffineEditorContainer } from '@presets/editors/index.js';
 import type { BlockModel } from '@store/schema/index.js';
 
-import { assertExists } from '@global/utils.js';
+import { assertExists } from '@blocksuite/global/utils';
 import { expect } from '@playwright/test';
 import { uuidv4 } from '@store/utils/id-generator.js';
 import lz from 'lz-string';
@@ -19,11 +19,11 @@ import lz from 'lz-string';
 import '../declare-test-window.js';
 import { currentEditorIndex, multiEditor } from '../multiple-editor.js';
 import {
-  SHORT_KEY,
   pressEnter,
   pressEscape,
   pressSpace,
   pressTab,
+  SHORT_KEY,
   type,
 } from './keyboard.js';
 
@@ -95,13 +95,44 @@ async function initEmptyEditor({
           const editor = document.createElement('affine-editor-container');
           editor.doc = doc;
           editor.autofocus = true;
-          editor.slots.docLinkClicked.on(({ pageId: docId }) => {
-            const newDoc = collection.getDoc(docId);
-            if (!newDoc) {
-              throw new Error(`Failed to jump to page ${docId}`);
-            }
-            editor.doc = newDoc;
-          });
+          const defaultExtensions: ExtensionType[] = [
+            ...window.$blocksuite.defaultExtensions(),
+            {
+              setup: di => {
+                di.addImpl(window.$blocksuite.identifiers.ParseDocUrlService, {
+                  parseDocUrl() {
+                    return undefined;
+                  },
+                });
+              },
+            },
+            {
+              setup: di => {
+                di.override(
+                  window.$blocksuite.identifiers.DocModeProvider,
+                  window.$blocksuite.mockServices.mockDocModeService(
+                    () => editor.mode,
+                    mode => editor.switchEditor(mode)
+                  )
+                );
+              },
+            },
+          ];
+          editor.pageSpecs = [...editor.pageSpecs, ...defaultExtensions];
+          editor.edgelessSpecs = [
+            ...editor.edgelessSpecs,
+            ...defaultExtensions,
+          ];
+
+          editor.std
+            .get(window.$blocksuite.identifiers.RefNodeSlotsProvider)
+            .docLinkClicked.on(({ pageId: docId }) => {
+              const newDoc = collection.getDoc(docId);
+              if (!newDoc) {
+                throw new Error(`Failed to jump to page ${docId}`);
+              }
+              editor.doc = newDoc;
+            });
           appRoot.append(editor);
           return editor;
         };
@@ -242,10 +273,18 @@ export function expectConsoleMessage(
   page.on('console', (message: ConsoleMessage) => {
     if (
       [
+        '',
+        // React devtools:
         '%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold',
+        // Vite:
         '[vite] connected.',
         '[vite] connecting...',
+        // Figma embed:
+        'Fullscreen: Using 4GB WASM heap',
+        // Lit:
         'Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.',
+        // Figma embed:
+        'Running frontend commit',
       ].includes(message.text())
     ) {
       ignoredLog(message);
@@ -498,7 +537,7 @@ export async function initEmptyDatabaseState(page: Page, rootId?: string) {
     if (databaseService) {
       databaseService.databaseViewInitEmpty(
         model,
-        databaseService.viewPresets.tableViewConfig
+        databaseService.viewPresets.tableViewMeta.type
       );
       databaseService.applyColumnUpdate(model);
     }
@@ -569,7 +608,7 @@ export async function initKanbanViewState(
         });
         databaseService.databaseViewInitEmpty(
           model,
-          databaseService.viewPresets.kanbanViewConfig
+          databaseService.viewPresets.kanbanViewMeta.type
         );
         databaseService.applyColumnUpdate(model);
       }
@@ -608,7 +647,7 @@ export async function initEmptyDatabaseWithParagraphState(
     if (databaseService) {
       databaseService.databaseViewInitEmpty(
         model,
-        databaseService.viewPresets.tableViewConfig
+        databaseService.viewPresets.tableViewMeta.type
       );
       databaseService.applyColumnUpdate(model);
     }
@@ -1071,7 +1110,6 @@ export async function setSelection(
       focusOffset,
       currentEditorIndex,
     }) => {
-      /* eslint-disable @typescript-eslint/no-non-null-assertion */
       const editorHost =
         document.querySelectorAll('editor-host')[currentEditorIndex];
       const anchorRichText = editorHost.querySelector<RichText>(
@@ -1421,31 +1459,20 @@ export async function scrollToBottom(page: Page) {
   });
 }
 
-export async function mockQuickSearch(
+export async function mockParseDocUrlService(
   page: Page,
-  mapping: Record<string, string> // query -> docId
+  mapping: Record<string, string>
 ) {
-  // mock quick search service
   await page.evaluate(mapping => {
-    window.host.std.getService('affine:page').quickSearchService = {
-      searchDoc(options) {
-        return new Promise(resolve => {
-          if (!options.userInput) {
-            return resolve(null);
-          }
-
-          const docId = mapping[options.userInput];
-          if (!docId) {
-            return resolve({
-              userInput: options.userInput,
-            });
-          } else {
-            return resolve({
-              docId,
-            });
-          }
-        });
-      },
+    const parseDocUrlService = window.host.std.get(
+      window.$blocksuite.identifiers.ParseDocUrlService
+    );
+    parseDocUrlService.parseDocUrl = (url: string) => {
+      const docId = mapping[url];
+      if (docId) {
+        return { docId };
+      }
+      return;
     };
   }, mapping);
 }

@@ -1,7 +1,7 @@
-// eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { PageEditor, createEmptyDoc } from '@blocksuite/presets';
-import '@blocksuite/presets/themes/affine.css';
+import { createEmptyDoc, PageEditor } from '@blocksuite/presets';
 import { Text } from '@blocksuite/store';
+
+import '../../../style.css';
 
 const doc = createEmptyDoc().init();
 const editor = new PageEditor();

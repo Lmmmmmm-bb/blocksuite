@@ -1,12 +1,13 @@
-import type { ViewMeta } from '../data-view/view/data-view.js';
+import type { ViewMeta } from '@blocksuite/data-view';
 
-import { viewPresets } from '../data-view/view/index.js';
+import { viewConverts, viewPresets } from '@blocksuite/data-view/view-presets';
 
 export const databaseBlockViews: ViewMeta[] = [
-  viewPresets.tableViewConfig,
-  viewPresets.kanbanViewConfig,
+  viewPresets.tableViewMeta,
+  viewPresets.kanbanViewMeta,
 ];
 
 export const databaseBlockViewMap = Object.fromEntries(
   databaseBlockViews.map(view => [view.type, view])
 );
+export const databaseBlockViewConverts = [...viewConverts];

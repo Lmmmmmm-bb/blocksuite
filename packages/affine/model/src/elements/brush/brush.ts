@@ -4,19 +4,14 @@ import type {
 } from '@blocksuite/block-std/gfx';
 
 import {
-  GfxPrimitiveElementModel,
   convert,
   derive,
   field,
+  GfxPrimitiveElementModel,
   watch,
 } from '@blocksuite/block-std/gfx';
 import {
   Bound,
-  type IVec,
-  type IVec3,
-  PointLocation,
-  type SerializedXYWH,
-  Vec,
   getBoundFromPoints,
   getPointsFromBoundsWithRotation,
   getQuadBoundsWithRotation,
@@ -24,9 +19,14 @@ import {
   getSvgPathFromStroke,
   inflateBound,
   isPointOnlines,
+  type IVec,
+  type IVec3,
   lineIntersects,
+  PointLocation,
   polyLineNearestPoint,
+  type SerializedXYWH,
   transformPointsToNewBound,
+  Vec,
 } from '@blocksuite/global/utils';
 
 import type { Color } from '../../consts/index.js';
@@ -42,6 +42,28 @@ export type BrushProps = BaseElementProps & {
 };
 
 export class BrushElementModel extends GfxPrimitiveElementModel<BrushProps> {
+  /**
+   * The SVG path commands for the brush.
+   */
+  get commands() {
+    if (!this._local.has('commands')) {
+      const stroke = getSolidStrokePoints(this.points, this.lineWidth);
+      const commands = getSvgPathFromStroke(stroke);
+
+      this._local.set('commands', commands);
+    }
+
+    return this._local.get('commands') as string;
+  }
+
+  override get connectable() {
+    return false;
+  }
+
+  override get type() {
+    return 'brush';
+  }
+
   static override propsToY(props: BrushProps) {
     return props;
   }
@@ -109,28 +131,6 @@ export class BrushElementModel extends GfxPrimitiveElementModel<BrushProps> {
     return hit;
   }
 
-  /**
-   * The SVG path commands for the brush.
-   */
-  get commands() {
-    if (!this._local.has('commands')) {
-      const stroke = getSolidStrokePoints(this.points, this.lineWidth);
-      const commands = getSvgPathFromStroke(stroke);
-
-      this._local.set('commands', commands);
-    }
-
-    return this._local.get('commands') as string;
-  }
-
-  override get connectable() {
-    return false;
-  }
-
-  override get type() {
-    return 'brush';
-  }
-
   @field()
   accessor color: Color = '#000000';
 
@@ -138,15 +138,21 @@ export class BrushElementModel extends GfxPrimitiveElementModel<BrushProps> {
     instance['_local'].delete('commands');
   })
   @derive((lineWidth: number, instance: Instance) => {
-    if (lineWidth === instance.lineWidth) return {};
+    const oldBound = instance.elementBound;
 
-    const bound = instance.elementBound;
+    if (
+      lineWidth === instance.lineWidth ||
+      oldBound.w === 0 ||
+      oldBound.h === 0
+    )
+      return {};
+
     const points = instance.points;
     const transformed = transformPointsToNewBound(
       points.map(([x, y]) => ({ x, y })),
-      bound,
-      lineWidth / 2,
-      inflateBound(bound, lineWidth - instance.lineWidth),
+      oldBound,
+      instance.lineWidth / 2,
+      inflateBound(oldBound, lineWidth - instance.lineWidth),
       lineWidth / 2
     );
 
@@ -194,14 +200,14 @@ export class BrushElementModel extends GfxPrimitiveElementModel<BrushProps> {
 
   @derive((xywh: SerializedXYWH, instance: Instance) => {
     const bound = Bound.deserialize(xywh);
+
     if (bound.w === instance.w && bound.h === instance.h) return {};
 
     const { lineWidth } = instance;
-
     const transformed = transformPointsToNewBound(
       instance.points.map(([x, y]) => ({ x, y })),
       instance,
-      lineWidth / 2,
+      instance.lineWidth / 2,
       bound,
       lineWidth / 2
     );

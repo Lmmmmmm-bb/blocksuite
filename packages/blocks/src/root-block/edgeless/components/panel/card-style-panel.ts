@@ -1,14 +1,11 @@
-import { WithDisposable } from '@blocksuite/block-std';
-import { LitElement, type TemplateResult, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { WithDisposable } from '@blocksuite/global/utils';
+import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { EmbedCardStyle } from '../../../../_common/types.js';
 
-import '../../../../_common/components/button.js';
-
-@customElement('card-style-panel')
 export class CardStylePanel extends WithDisposable(LitElement) {
   static override styles = css`
     :host {

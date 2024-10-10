@@ -6,8 +6,8 @@ import {
   ShapeFillColor,
 } from '@blocksuite/affine-model';
 import { ThemeObserver } from '@blocksuite/affine-shared/theme';
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement, nothing } from 'lit';
+import { property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
@@ -152,7 +152,6 @@ export function ColorUnit(
   `;
 }
 
-@customElement('edgeless-color-button')
 export class EdgelessColorButton extends LitElement {
   static override styles = css`
     :host {
@@ -172,6 +171,11 @@ export class EdgelessColorButton extends LitElement {
     }
   `;
 
+  get preprocessColor() {
+    const color = this.color;
+    return color.startsWith('--') ? `var(${color})` : color;
+  }
+
   override render() {
     const { color, hollowCircle, letter } = this;
     const additionIcon = AdditionIcon(color, !!hollowCircle);
@@ -190,11 +194,6 @@ export class EdgelessColorButton extends LitElement {
     >
       ${additionIcon}
     </div>`;
-  }
-
-  get preprocessColor() {
-    const color = this.color;
-    return color.startsWith('--') ? `var(${color})` : color;
   }
 
   @property({ attribute: false })
@@ -239,7 +238,6 @@ export const colorContainerStyles = css`
   }
 `;
 
-@customElement('edgeless-color-panel')
 export class EdgelessColorPanel extends LitElement {
   static override styles = css`
     :host {
@@ -252,6 +250,12 @@ export class EdgelessColorPanel extends LitElement {
 
     ${colorContainerStyles}
   `;
+
+  get palettes() {
+    return this.hasTransparent
+      ? ['--affine-palette-transparent', ...this.options]
+      : this.options;
+  }
 
   onSelect(value: string) {
     this.dispatchEvent(
@@ -291,12 +295,6 @@ export class EdgelessColorPanel extends LitElement {
     `;
   }
 
-  get palettes() {
-    return this.hasTransparent
-      ? ['--affine-palette-transparent', ...this.options]
-      : this.options;
-  }
-
   @property({ attribute: false })
   accessor hasTransparent: boolean = true;
 
@@ -316,7 +314,6 @@ export class EdgelessColorPanel extends LitElement {
   accessor value: string | null = null;
 }
 
-@customElement('edgeless-text-color-icon')
 export class EdgelessTextColorIcon extends LitElement {
   static override styles = css`
     :host {
@@ -327,6 +324,11 @@ export class EdgelessTextColorIcon extends LitElement {
       height: 20px;
     }
   `;
+
+  get preprocessColor() {
+    const color = this.color;
+    return color.startsWith('--') ? `var(${color})` : color;
+  }
 
   override render() {
     return html`
@@ -353,11 +355,6 @@ export class EdgelessTextColorIcon extends LitElement {
         />
       </svg>
     `;
-  }
-
-  get preprocessColor() {
-    const color = this.color;
-    return color.startsWith('--') ? `var(${color})` : color;
   }
 
   @property({ attribute: false })

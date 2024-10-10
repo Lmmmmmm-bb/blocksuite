@@ -1,9 +1,8 @@
-import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
 
 import { colorContainerStyles } from '../panel/color-panel.js';
 
-@customElement('edgeless-color-custom-button')
 export class EdgelessColorCustomButton extends LitElement {
   static override styles = css`
     ${colorContainerStyles}
